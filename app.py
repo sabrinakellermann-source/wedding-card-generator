@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import time
 from datetime import datetime
-from pinterest_scraper import extract_pinterest_images, validate_pinterest_url
+from pinterest_scraper import extract_pinterest_images, validate_pinterest_url, MIN_REQUIRED_IMAGES
 from ai_card_generator import generate_wedding_card_from_pinterest
 from card_schema import validate_card_design
 from card_renderer import render_card_design
@@ -60,7 +60,7 @@ with col1:
         if not pinterest_url:
             st.error("Please enter a Pinterest board URL")
         elif not validate_pinterest_url(pinterest_url):
-            st.error("Please enter a valid Pinterest board URL")
+            st.error("❌ Invalid URL format. Please enter a Pinterest board URL (e.g., https://pinterest.com/username/board-name/) — search results and individual pins are not supported.")
         else:
             st.session_state.pinterest_url = pinterest_url
             
@@ -71,9 +71,15 @@ with col1:
                     image_urls = extract_pinterest_images(pinterest_url, max_images=25)
                     
                     if not image_urls:
-                        st.error("No images found on this Pinterest board. Please check the URL and ensure the board is public.")
-                    elif len(image_urls) < 5:
-                        st.warning(f"Only found {len(image_urls)} images. For best results, use a board with at least 10 images.")
+                        st.error(f"❌ No images found on this Pinterest board. Please check the URL and ensure the board is public and contains wedding inspiration images.")
+                        st.stop()
+                    elif len(image_urls) < MIN_REQUIRED_IMAGES:
+                        st.error(f"❌ Insufficient images: Found only {len(image_urls)} image(s). At least {MIN_REQUIRED_IMAGES} images are required to create a meaningful design. Please use a board with more wedding inspiration images.")
+                        st.stop()
+                    elif len(image_urls) < 10:
+                        st.warning(f"⚠️ Found {len(image_urls)} images. For best results, use a board with at least 10-15 images.")
+                        analyzed_count = len(image_urls)
+                        st.info(f"Analyzing all {analyzed_count} available images...")
                     else:
                         analyzed_count = min(10, len(image_urls))
                         st.success(f"✓ Found {len(image_urls)} images (analyzing top {analyzed_count} for optimal performance)")

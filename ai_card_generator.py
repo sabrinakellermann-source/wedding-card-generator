@@ -307,24 +307,24 @@ EXAMPLE 3 - Classic Elegant:
     prompt = f"""You are a senior graphic designer at kartenmacherei.de, a premium German wedding stationery company.
 
 YOUR TASK:
-Create a new wedding invitation design based on the provided design brief. Your output MUST be a single, valid JSON object that follows our exact schema.
+Create a new wedding invitation design that captures the aesthetic described in the design brief below. Your output MUST be a single, valid JSON object that follows our exact schema.
 
-DESIGN BRIEF:
+DESIGN BRIEF TO FOLLOW:
 {design_brief}
 
-KARTENMACHEREI.DE BRAND GUIDELINES:
-- Elegant, timeless, and sophisticated aesthetic
-- Clean layouts with balanced white space
-- Premium color palettes (avoid harsh or overly bright colors)
-- Professional typography combinations
-- German wedding invitation conventions
+CRITICAL INSTRUCTIONS - READ CAREFULLY:
+1. COLORS: You MUST use ONLY the 5 hex color codes listed in the design brief's color palette. Do not use colors from the examples below.
+2. MOTIFS: Incorporate the key motifs and visual elements mentioned in the design brief using our available decorative elements.
+3. TYPOGRAPHY: Match the font choices to the typography style described in the design brief (elegant script → "Script", modern → "Sans-Serif", classic → "Serif").
+4. MOOD: The overall aesthetic (background color, spacing, element arrangement) should reflect the mood described in the design brief.
+5. EXAMPLES ARE FORMAT ONLY: The examples below show the correct JSON structure, but DO NOT copy their colors, text, or specific design choices.
 
 AVAILABLE FONTS:
 - "Serif": Classic, elegant, timeless
 - "Sans-Serif": Modern, clean, minimal
 - "Script": Romantic, flowing, handwritten feel
 
-AVAILABLE DECORATIVE ELEMENTS:
+AVAILABLE DECORATIVE ELEMENTS (use these to represent the brief's motifs):
 - "floral-branch": Delicate botanical accent
 - "heart-line": Simple romantic divider
 - "geometric-border": Modern minimal frame
@@ -334,16 +334,17 @@ AVAILABLE DECORATIVE ELEMENTS:
 OUTPUT REQUIREMENTS:
 1. Your ENTIRE response must be ONLY the JSON object - no additional text before or after
 2. Card dimensions: width=148mm, height=105mm (A6 landscape format)
-3. Include 2-5 text elements
-4. May include 0-2 decorative elements
+3. Include 2-5 text elements (e.g., "Save the Date", couple names, date, location)
+4. May include 0-2 decorative elements that match the brief's motifs
 5. All positions in millimeters from top-left corner
-6. All colors as hex codes from the design brief's palette
+6. All colors MUST come from the design brief's 5-color palette
 7. Font sizes: 12-40 for readability
+8. Choose background color from the brief's palette (usually the lightest or most neutral color)
 
-REFERENCE EXAMPLES OF PROPER FORMAT:
+FORMAT REFERENCE EXAMPLES (structure only - create your own content based on the brief):
 {example_cards}
 
-Now generate the JSON for this wedding invitation design:"""
+Now generate the JSON wedding invitation design that brings the design brief to life:"""
     
     response = client.models.generate_content(
         model="gemini-2.5-pro",
