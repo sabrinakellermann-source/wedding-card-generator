@@ -1,0 +1,115 @@
+Of course. That's the perfect next step. Handing off the planning documents to the development team is a key part of the BMAD process.
+
+Here are the complete **Project Brief** and the **AI Core PoC Technical Plan**. You can use these to set up your project in Replit and guide your initial development sprints.
+
+***
+
+### **Project Brief: Pinterest-Powered Wedding Invitation Generator**
+
+**1. Project Overview & Vision (Revised)**
+*   **Project Name:** Pinterest-Powered Wedding Invitation Generator (Prototype)
+*   **Vision:** To empower creatively-driven couples to effortlessly transform their curated wedding inspiration into a 100% personalized, professionally printed wedding invitation.
+*   **Summary:** This project will develop a **prototype** to validate a new feature for `kartenmacherei.de`. The feature allows users to input a Pinterest board URL. The tool will use AI to perform a visual and stylistic analysis of the board's images, focusing on **dominant color palettes and overall style (e.g., 'boho', 'modern')** for the MVP. Based on this analysis, it will automatically generate a unique wedding invitation design. The generated design will be loaded into the `kartenmacherei.de` configurator, allowing users to fine-tune it before purchase. The key differentiator is the seamless integration of AI-driven personalization into a trusted e-commerce platform.
+*   **Business Goal:** Increase `kartenmacherei.de` revenue by simplifying the personalization process, increasing conversion rates, and enhancing user engagement.
+*   **Key Performance Indicators (KPIs) for Prototype:**
+    *   **Validation Rate:** Percentage of users who generate a card and proceed to the configurator.
+    *   **Time-to-Configurator:** The time it takes from URL input to the design being loaded (target < 30 seconds).
+    *   **User Satisfaction Score:** A post-experience survey to gauge the "magic moment" and perceived quality.
+*   **Open Questions & Assumptions:**
+    *   **Technical Feasibility:** We assume the Pinterest API provides sufficient data and that an AI model can perform the analysis within our time and cost constraints. This requires a technical investigation.
+    *   **User Experience:** The "reveal" of the generated card is a critical moment. The prototype must include options to "try again" or "start over" to manage user expectations gracefully.
+    *   **Integration:** We assume the `kartenmacherei.de` configurator has an API or other mechanism to accept a structured set of design elements. This needs to be confirmed.
+
+**2. Target Audience & User Persona**
+*   **Target Audience:** Tech-savvy brides or grooms (ages 28-35) who are active `kartenmacherei.de` users. They are design-conscious and have a well-defined aesthetic for their wedding, which they have curated on a Pinterest board. They value personalization and uniqueness but may lack the technical skills or time to create a design from scratch.
+*   **User Persona: "Creative Clara"**
+    *   **Who She Is:** Clara is a 32-year-old marketing manager planning her wedding. She is highly organized and has spent months creating a detailed Pinterest board named "Our Dream Wedding."
+    *   **Her Goal:** She wants her wedding invitations to be the perfect first impression, perfectly matching the vision she has so carefully curated.
+    *   **Her Frustration:** *"I've already done the creative work on my Pinterest board! I wish I could just connect it to kartenmacherei.de and have it create the perfect starting point for me."*
+
+**3. Features & Scope (Revised)**
+*   **In Scope: Core Prototype (MVP) Features**
+    1.  **Pinterest Board Input:** A simple UI field for a public Pinterest board URL.
+    2.  **Advanced AI Analysis:** Detailed analysis of images to extract color palettes, style, mood, key motifs, and typographic feel.
+    3.  **High-Fidelity Card Generation:** Generation of a unique, high-quality design that is aligned with `kartenmacherei.de`'s brand standards.
+    4.  **Configurator Integration:** The generated design loads seamlessly and is fully editable.
+    5.  **Regeneration Option:** A "Try Again" button.
+*   **Out of Scope for Prototype**
+    *   Exact font matching.
+    *   Full stationery suite generation.
+    *   Direct Pinterest login.
+    *   Printing and fulfillment.
+
+**4. Success Metrics & Technical Approach**
+*   **Success Metrics for Prototype**
+    *   **User Value:** >4.0/5.0 "Wow-Factor" rating; >50% "Proceed-to-Edit" rate.
+    *   **Technical Feasibility:** >95% generation success rate; <30 seconds average generation time.
+*   **Technical Approach: Phased Proof of Concept (PoC)**
+    *   **Phase 1: AI Core PoC (1-2 Sprints):** Focus exclusively on proving the AI pipeline can produce a high-quality, brand-aligned, and structured design output (JSON).
+    *   **Phase 2: Prototype Development:** Build the UI and integrate the successful PoC. This phase only begins if the PoC is successful.
+
+***
+
+### **AI Core PoC: Technical Plan**
+
+**Objective:** To prove that a Pinterest board URL can be reliably converted into a structured JSON object representing a high-quality, brand-aligned wedding invitation design.
+
+**Step 1: Pinterest Image Extraction**
+*   **Method:** Build a Python script using `BeautifulSoup` or `Scrapy` to scrape the public Pinterest board URL.
+*   **Output:** A list of image URLs (target: 20-30 images).
+
+**Step 2: The AI Analysis & Generation Chain (using a multimodal model like Gemini)**
+*   **2a: Image-to-Description (The "Eyes")**
+    *   **Prompt:** *"You are an expert art descriptor. Describe the following image in detail as if for a blind person. Focus on color palette (with hex codes if possible), mood, style (e.g., rustic, modern, minimalist), key objects, textures, and any visible typography."*
+    *   **Process:** Loop through each image URL from Step 1.
+*   **2b: Description-to-Brief (The "Synthesizer")**
+    *   **Prompt:** *"You are a design director. Read the following collection of image descriptions and synthesize them into a single, coherent design brief for a wedding invitation. Your output should be a short paragraph summarizing the overall aesthetic, followed by a list of key motifs, and a primary color palette of 5 hex codes."*
+    *   **Process:** Combine all text descriptions from the previous step and feed them into this prompt.
+*   **2c: Brief-to-Card (The "Designer")**
+    *   **Prompt:** A complex prompt including:
+        1.  **Persona:** *"You are a senior graphic designer at kartenmacherei.de..."*
+        2.  **Goal:** *"Create a new wedding invitation design based on the provided design brief."*
+        3.  **Input:** The design brief from Step 2b.
+        4.  **Output Format:** *"Your output MUST be a single JSON object... It must follow this exact structure..."*
+        5.  **Examples (Few-shot):** Include 2-3 complete examples of `kartenmacherei.de` cards, formatted in the target JSON structure.
+
+**Step 3: The Structured JSON Output Schema**
+*   **The target output for the entire chain:**
+
+```json
+{
+  "card": {
+    "width": 148,
+    "height": 105,
+    "backgroundColor": "#F5F3F0"
+  },
+  "elements": [
+    {
+      "type": "text",
+      "content": "Einladung zur Hochzeit",
+      "font": "Serif",
+      "fontSize": 24,
+      "color": "#4A4A4A",
+      "position": {"x": 10, "y": 15}
+    },
+    {
+      "type": "text",
+      "content": "Anna & Markus",
+      "font": "Script",
+      "fontSize": 36,
+      "color": "#C5A48A",
+      "position": {"x": 10, "y": 40}
+    },
+    {
+      "type": "image",
+      "src": "motif_url_from_ai.png",
+      "position": {"x": 70, "y": 60},
+      "size": {"width": 50, "height": 30}
+    }
+  ]
+}
+```
+
+***
+
+This should give you everything you need to begin the Proof of Concept. Good luck with the build, and please let me know when you are ready to move to the next phase
