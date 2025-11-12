@@ -61,8 +61,11 @@ Preferred communication style: Simple, everyday language.
 ## Web Scraping
 - **Pinterest Data Extraction**: BeautifulSoup-based scraping of public Pinterest boards
 - **Image Sources**: Meta tags (og:image) and img tags with Pinterest CDN URLs (pinimg.com)
-- **Limitations**: Public boards only, no authentication, max 30 images
-- **User Agent Spoofing**: Standard browser headers to avoid blocking
+- **Critical Limitation**: Pinterest has strong bot detection and serves JavaScript-heavy pages that block automated scraping as of November 2024
+- **Workaround**: Manual image URL input option added - users can copy image URLs directly from Pinterest and paste them into the app
+- **URL Validation**: Strict allowlist-based validation prevents SSRF attacks while supporting all legitimate Pinterest domains (pinterest.com, pinterest.com.au, de.pinterest.com, etc.)
+- **Minimum Image Requirement**: At least 5 images required for meaningful aesthetic analysis
+- **Future Enhancement**: For production deployment, recommend Pinterest API integration or server-side rendering solution to handle JavaScript-heavy pages
 
 ## UI Framework
 - **Streamlit**: Web application framework for rapid prototyping

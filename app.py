@@ -38,12 +38,29 @@ col1, col2 = st.columns([2, 1])
 with col1:
     st.subheader("📌 Enter Your Pinterest Board")
     
-    pinterest_url = st.text_input(
-        "Pinterest Board URL",
-        value=st.session_state.pinterest_url,
-        placeholder="https://www.pinterest.com/yourname/your-board/",
-        help="Paste the URL of your public Pinterest wedding inspiration board"
+    input_method = st.radio(
+        "Choose input method:",
+        ["Pinterest Board URL", "Manual Image URLs (Workaround)"],
+        help="Pinterest may block automated scraping. Use manual URLs if automatic scraping fails."
     )
+    
+    if input_method == "Pinterest Board URL":
+        pinterest_url = st.text_input(
+            "Pinterest Board URL",
+            value=st.session_state.pinterest_url,
+            placeholder="https://www.pinterest.com/yourname/your-board/",
+            help="Paste the URL of your public Pinterest wedding inspiration board"
+        )
+        manual_urls = None
+    else:
+        st.info("💡 **How to get image URLs from Pinterest:**\n1. Open your board in a browser\n2. Right-click on images → Copy image address\n3. Paste 5-15 image URLs below (one per line)")
+        manual_urls_text = st.text_area(
+            "Image URLs (one per line)",
+            height=150,
+            placeholder="https://i.pinimg.com/originals/...\nhttps://i.pinimg.com/736x/...\n..."
+        )
+        manual_urls = [url.strip() for url in manual_urls_text.split('\n') if url.strip()]
+        pinterest_url = None
     
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
     
@@ -57,17 +74,29 @@ with col1:
             regenerate_button = False
     
     if generate_button or regenerate_button:
-        if not pinterest_url:
-            st.error("Please enter a Pinterest board URL")
-        elif not validate_pinterest_url(pinterest_url):
-            st.error("❌ Invalid URL format. Please enter a Pinterest board URL (e.g., https://pinterest.com/username/board-name/) — search results and individual pins are not supported.")
+        # Validate inputs based on selected method
+        if input_method == "Pinterest Board URL":
+            if not pinterest_url:
+                st.error("Please enter a Pinterest board URL")
+                st.stop()
+            elif not validate_pinterest_url(pinterest_url):
+                st.error("❌ Invalid URL format. Please enter a Pinterest board URL (e.g., https://pinterest.com/username/board-name/) — search results and individual pins are not supported.")
+                st.stop()
         else:
-            st.session_state.pinterest_url = pinterest_url
+            if not manual_urls:
+                st.error("Please paste at least 5 image URLs (one per line)")
+                st.stop()
+            elif len(manual_urls) < MIN_REQUIRED_IMAGES:
+                st.error(f"❌ Please provide at least {MIN_REQUIRED_IMAGES} image URLs for meaningful design generation")
+                st.stop()
+        
+        try:
+            start_time = time.time()
             
-            try:
+            # Get image URLs based on input method
+            if input_method == "Pinterest Board URL":
+                st.session_state.pinterest_url = pinterest_url
                 with st.spinner("🔍 Extracting images from Pinterest board..."):
-                    start_time = time.time()
-                    
                     image_urls = extract_pinterest_images(pinterest_url, max_images=25)
                     
                     if not image_urls:
@@ -83,42 +112,47 @@ with col1:
                     else:
                         analyzed_count = min(10, len(image_urls))
                         st.success(f"✓ Found {len(image_urls)} images (analyzing top {analyzed_count} for optimal performance)")
+            else:
+                # Manual image URLs
+                image_urls = manual_urls
+                analyzed_count = min(10, len(image_urls))
+                st.success(f"✓ Using {len(image_urls)} manually provided images (analyzing top {analyzed_count})")
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            def update_progress(message, current, total):
+                progress_value = min(1.0, max(0.0, current / total)) if total > 0 else 0.0
+                progress_bar.progress(progress_value)
+                status_text.text(message)
+            
+            with st.spinner("🎨 Analyzing your wedding aesthetic with AI..."):
+                card_design = generate_wedding_card_from_pinterest(
+                    image_urls,
+                    progress_callback=update_progress
+                )
+            
+            elapsed_time = time.time() - start_time
+            
+            try:
+                validate_card_design(card_design)
+                st.session_state.generated_design = card_design
+                st.session_state.generation_count += 1
                 
-                progress_bar = st.progress(0)
-                status_text = st.empty()
+                progress_bar.empty()
+                status_text.empty()
                 
-                def update_progress(message, current, total):
-                    progress_value = min(1.0, max(0.0, current / total)) if total > 0 else 0.0
-                    progress_bar.progress(progress_value)
-                    status_text.text(message)
+                st.success(f"✨ Design generated successfully in {elapsed_time:.1f} seconds!")
+                st.rerun()
                 
-                with st.spinner("🎨 Analyzing your wedding aesthetic with AI..."):
-                    card_design = generate_wedding_card_from_pinterest(
-                        image_urls,
-                        progress_callback=update_progress
-                    )
+            except Exception as validation_error:
+                st.error(f"Generated design validation failed: {str(validation_error)}")
                 
-                elapsed_time = time.time() - start_time
-                
-                try:
-                    validate_card_design(card_design)
-                    st.session_state.generated_design = card_design
-                    st.session_state.generation_count += 1
-                    
-                    progress_bar.empty()
-                    status_text.empty()
-                    
-                    st.success(f"✨ Design generated successfully in {elapsed_time:.1f} seconds!")
-                    st.rerun()
-                    
-                except Exception as validation_error:
-                    st.error(f"Generated design validation failed: {str(validation_error)}")
-                    
-            except Exception as e:
-                st.error(f"Error generating design: {str(e)}")
-                import traceback
-                with st.expander("Technical Details"):
-                    st.code(traceback.format_exc())
+        except Exception as e:
+            st.error(f"Error generating design: {str(e)}")
+            import traceback
+            with st.expander("Technical Details"):
+                st.code(traceback.format_exc())
 
 with col2:
     st.subheader("ℹ️ How It Works")
