@@ -93,27 +93,17 @@ def extract_pinterest_images(board_url: str, max_images: int = 30) -> List[str]:
             if url.startswith('http') and ('pinimg.com' in url or 'pinterest.com' in url):
                 validated_urls.append(url)
         
-        if len(validated_urls) < MIN_REQUIRED_IMAGES:
-            raise Exception(
-                f"Pinterest board scraping is unreliable due to bot detection and JavaScript rendering. "
-                f"Found only {len(validated_urls)} images (need at least {MIN_REQUIRED_IMAGES}). "
-                f"Please use the 'Manual Image URLs' option instead: "
-                f"copy image URLs from your Pinterest board and paste them below."
-            )
-        
         return validated_urls
     
     except requests.RequestException as e:
         raise Exception(
             f"Failed to access Pinterest board: {str(e)}. "
-            f"Pinterest blocks automated access. Please use the 'Manual Image URLs' option instead."
+            f"Pinterest may be blocking automated access. Please try a different board or try again later."
         )
     except Exception as e:
-        if "unreliable" in str(e) or "Manual Image URLs" in str(e):
-            raise  # Re-raise our custom message
         raise Exception(
             f"Pinterest board scraping failed: {str(e)}. "
-            f"Please use the 'Manual Image URLs' option for reliable results."
+            f"Please try a different board or try again later."
         )
 
 
