@@ -58,39 +58,35 @@ Preferred communication style: Simple, everyday language.
 - **Configuration**: Custom base URL via `AI_INTEGRATIONS_GEMINI_BASE_URL`
 - **Rate Limiting**: Implements exponential backoff retry logic (7 attempts, 2-128 second delays)
 
-## Pinterest API Integration
-- **Primary Input Method**: Official Pinterest API v5 (OAuth 2.0)
-  - Reliable, supported access to user's Pinterest boards and pins
-  - Fetches high-quality original images directly from Pinterest CDN
-  - Respects Pinterest's terms of service and rate limits
-  - Requires one-time OAuth authentication per user
-- **Authentication Flow**:
-  1. User enters Pinterest board URL in the app
-  2. App redirects to Pinterest OAuth authorization page
-  3. User logs in and authorizes the app (scopes: boards:read, pins:read, user_accounts:read)
-  4. Pinterest redirects back to app with authorization code
-  5. App exchanges code for access token (30-day validity)
-  6. Access token stored in session state for subsequent requests
-- **API Endpoints Used**:
-  - `GET /v5/boards/{board_id}/pins/` - Fetch pins from a board (up to 100 per request)
-  - Board ID format: `username/board-name` extracted from Pinterest URL
-  - Image quality: Retrieves 'original' size for best AI analysis results
-- **Credentials Management**:
-  - App ID and App Secret stored securely in Replit Secrets
-  - Access tokens stored in session state (not persisted to database)
-  - Redirect URI: Dynamic based on REPLIT_DEV_DOMAIN environment variable
+## Pinterest Board Scraping
+- **Primary Input Method**: BeautifulSoup-based web scraping (anonymous, no authentication required)
+  - Allows access to any public Pinterest board without user login
+  - Scrapes image URLs directly from HTML without browser automation
+  - Best-effort approach suitable for prototype phase
+  - May be unreliable due to Pinterest's bot detection and JavaScript rendering
+- **Technical Approach**:
+  - HTTP requests with User-Agent headers to mimic browser behavior
+  - Multiple extraction strategies: meta tags, img tags, script tags
+  - URL normalization to fetch highest quality images (originals/ resolution)
+  - Deduplication and validation of Pinterest CDN URLs (pinimg.com)
+- **Scraping Heuristics**:
+  - Primary: Extract from Open Graph meta tags
+  - Secondary: Parse img tags with srcset attributes
+  - Fallback: Regex extraction from inline JavaScript
+  - Quality optimization: Replace /236x/, /474x/, /564x/ with /originals/
 - **Error Handling**:
-  - 401 Unauthorized: Token expired, prompts re-authentication
-  - 403 Forbidden: User doesn't own board or lack permissions
-  - 404 Not Found: Invalid board URL or board doesn't exist
-  - Clear user-facing error messages with actionable guidance
+  - Graceful degradation when scraping fails
+  - Clear user messaging about Pinterest bot detection
+  - Suggestion to try different boards or manual input fallback
+  - Timeout protection (10 seconds per request)
 - **Limitations**:
-  - Pinterest API only allows access to boards owned by the authenticated user or shared group boards
-  - Cannot access arbitrary public boards (privacy/security restriction by Pinterest)
-  - Access tokens expire after 30 days, requiring re-authentication
+  - Pinterest's JavaScript-heavy pages may limit extraction reliability
+  - Bot detection may block requests from Replit IP addresses
+  - Success rate varies by board structure and Pinterest's current anti-scraping measures
+  - Not suitable for production use (acceptable for prototype/PoC)
 - **URL Validation**: Strict allowlist-based validation prevents SSRF attacks while supporting all legitimate Pinterest domains (pinterest.com, pinterest.com.au, de.pinterest.com, etc.)
 - **Minimum Image Requirement**: At least 5 pins required for meaningful aesthetic analysis
-- **Legacy Support**: Web scraping code (pinterest_scraper.py) retained for reference but no longer used in production flow
+- **Future Migration Path**: Recommended to use Apify Pinterest scrapers or official Pinterest API for production deployment
 
 ## UI Framework
 - **Streamlit**: Web application framework for rapid prototyping

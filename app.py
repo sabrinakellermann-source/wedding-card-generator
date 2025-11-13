@@ -2,8 +2,7 @@ import streamlit as st
 import json
 import time
 from datetime import datetime
-from pinterest_scraper import validate_pinterest_url, MIN_REQUIRED_IMAGES
-from pinterest_dl_scraper import extract_pinterest_board_images, PinterestDLError
+from pinterest_scraper import extract_pinterest_images, validate_pinterest_url, MIN_REQUIRED_IMAGES
 from ai_card_generator import generate_wedding_card_from_pinterest
 from card_schema import validate_card_design
 from card_renderer import render_card_design
@@ -69,11 +68,11 @@ with col1:
         try:
             start_time = time.time()
             
-            # Use pinterest-dl to scrape the board (no authentication required!)
+            # Use BeautifulSoup scraper to fetch images from the board (no authentication required!)
             st.session_state.pinterest_url = pinterest_url
             with st.spinner("🔍 Fetching pins from Pinterest board..."):
                 try:
-                    image_urls = extract_pinterest_board_images(pinterest_url, max_images=25)
+                    image_urls = extract_pinterest_images(pinterest_url, max_images=25)
                     
                     if not image_urls:
                         st.error(f"❌ No pins found on this board. Please check the URL and ensure the board is public and contains images.")
@@ -89,8 +88,9 @@ with col1:
                         analyzed_count = min(10, len(image_urls))
                         st.success(f"✓ Found {len(image_urls)} pins (analyzing top {analyzed_count} for optimal performance)")
                         
-                except PinterestDLError as e:
+                except Exception as e:
                     st.error(f"❌ {str(e)}")
+                    st.info("💡 **Tip**: Pinterest sometimes blocks automated access. If this happens repeatedly, try a different board or contact support for manual options.")
                     st.stop()
             
             progress_bar = st.progress(0)
@@ -218,7 +218,7 @@ with st.expander("ℹ️ About This Prototype"):
     - **Brand Alignment**: Designs follow kartenmacherei.de aesthetic standards
     
     #### Technology Stack
-    - **Pinterest Scraping**: pinterest-dl for anonymous board access
+    - **Pinterest Scraping**: BeautifulSoup for anonymous board access (best-effort)
     - **AI Analysis**: Google Gemini 2.5 Flash & Pro (multimodal vision)
     - **Design Schema**: Pydantic-validated JSON output
     - **Rendering**: PIL for visual preview generation
