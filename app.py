@@ -29,13 +29,22 @@ if 'generation_count' not in st.session_state:
     st.session_state.generation_count = 0
 if 'pinterest_access_token' not in st.session_state:
     st.session_state.pinterest_access_token = None
-if 'auth_state' not in st.session_state:
-    st.session_state.auth_state = None
+if 'oauth_state' not in st.session_state:
+    st.session_state.oauth_state = None
 
 # Handle OAuth callback
 query_params = st.query_params
 if 'code' in query_params:
     auth_code = query_params['code']
+    returned_state = query_params.get('state')
+    
+    # Validate OAuth state to prevent CSRF attacks
+    if not returned_state or returned_state != st.session_state.oauth_state:
+        st.error("❌ Authentication failed: Invalid state parameter. Please try again.")
+        st.query_params.clear()
+        st.session_state.oauth_state = None
+        st.stop()
+    
     try:
         api = PinterestAPI()
         redirect_uri = os.getenv('REPLIT_DEV_DOMAIN', 'http://localhost:5000')
@@ -44,11 +53,14 @@ if 'code' in query_params:
         
         access_token = api.exchange_code_for_token(auth_code, redirect_uri)
         st.session_state.pinterest_access_token = access_token
+        st.session_state.oauth_state = None  # Clear state after successful auth
         st.success("✅ Successfully authenticated with Pinterest!")
         st.query_params.clear()
         st.rerun()
     except PinterestAPIError as e:
         st.error(f"Authentication failed: {str(e)}")
+        st.session_state.oauth_state = None
+        st.query_params.clear()
 
 
 def progress_callback(message: str, current: int, total: int):
@@ -101,14 +113,20 @@ with col1:
             4. You'll be redirected back here automatically
             """)
             
-            # Generate OAuth URL
+            # Generate OAuth URL with secure random state
             try:
+                import secrets
+                
                 api = PinterestAPI()
                 redirect_uri = os.getenv('REPLIT_DEV_DOMAIN', 'http://localhost:5000')
                 if not redirect_uri.startswith('http'):
                     redirect_uri = f'https://{redirect_uri}'
                 
-                auth_url = api.get_oauth_url(redirect_uri, state="wedding_card_auth")
+                # Generate cryptographically secure random state for CSRF protection
+                oauth_state = secrets.token_urlsafe(32)
+                st.session_state.oauth_state = oauth_state
+                
+                auth_url = api.get_oauth_url(redirect_uri, state=oauth_state)
                 
                 st.markdown(f"### [🔗 Connect Pinterest Account]({auth_url})")
                 st.info("💡 **Note:** Make sure the board you want to use is created by the Pinterest account you're logging in with.")
