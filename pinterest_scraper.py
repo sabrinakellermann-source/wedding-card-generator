@@ -9,7 +9,11 @@ MIN_REQUIRED_IMAGES = 5
 
 def extract_pinterest_images(board_url: str, max_images: int = 30) -> List[str]:
     """
-    Extract image URLs from a public Pinterest board using Playwright for JavaScript rendering.
+    Extract image URLs from a public Pinterest board.
+    
+    NOTE: Pinterest uses heavy JavaScript and bot detection which makes automated
+    scraping unreliable. This function attempts basic extraction but may not work
+    consistently. For reliable results, use the manual image URL input option.
     
     Args:
         board_url: URL of the public Pinterest board
@@ -18,88 +22,99 @@ def extract_pinterest_images(board_url: str, max_images: int = 30) -> List[str]:
     Returns:
         List of image URLs
     """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+    }
+    
     try:
-        from playwright.sync_api import sync_playwright
-        import re
+        response = requests.get(board_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
         
         image_urls = []
         
-        with sync_playwright() as p:
-            # Launch browser in headless mode
-            browser = p.chromium.launch(headless=True)
+        # Try to find images in meta tags first
+        meta_images = soup.find_all('meta', property='og:image')
+        for meta in meta_images[:max_images]:
+            img_url = meta.get('content')
+            if img_url and img_url not in image_urls:
+                image_urls.append(img_url)
+        
+        # Try to find images in img tags
+        img_tags = soup.find_all('img')
+        for img in img_tags:
+            src = img.get('src') or img.get('data-src')
+            if not src:
+                srcset = img.get('srcset')
+                if srcset and isinstance(srcset, str):
+                    src = srcset.split(',')[0].split(' ')[0]
             
-            # Create context with realistic user agent
-            context = browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                viewport={'width': 1920, 'height': 1080}
-            )
-            
-            page = context.new_page()
-            
-            # Navigate to Pinterest board
-            page.goto(board_url, wait_until='networkidle', timeout=30000)
-            
-            # Wait for images to load
-            page.wait_for_timeout(3000)
-            
-            # Scroll down a few times to trigger lazy loading
-            for _ in range(3):
-                page.evaluate('window.scrollBy(0, window.innerHeight)')
-                page.wait_for_timeout(1000)
-            
-            # Extract all image URLs from the page
-            # Pinterest loads images with srcset and data-src attributes
-            img_elements = page.query_selector_all('img')
-            
-            for img in img_elements:
-                # Try different attributes where Pinterest stores image URLs
-                src = img.get_attribute('src') or img.get_attribute('data-src')
-                srcset = img.get_attribute('srcset')
-                
-                # Extract URL from srcset if available
-                if srcset:
-                    # srcset format: "url1 1x, url2 2x"
-                    urls_in_srcset = re.findall(r'(https://[^\s,]+)', srcset)
-                    for url in urls_in_srcset:
-                        if 'pinimg.com' in url and url not in image_urls:
-                            # Get highest quality version
+            if src and isinstance(src, str) and ('pinimg.com' in src or 'pinterest.com' in src):
+                # Get the highest quality version
+                if '/236x/' in src:
+                    src = src.replace('/236x/', '/originals/')
+                elif '/474x/' in src:
+                    src = src.replace('/474x/', '/originals/')
+                elif '/564x/' in src:
+                    src = src.replace('/564x/', '/originals/')
+                    
+                if src not in image_urls:
+                    image_urls.append(src)
+                    
+            if len(image_urls) >= max_images:
+                break
+        
+        # Try extracting from page scripts
+        if len(image_urls) < 5:
+            import re
+            script_tags = soup.find_all('script')
+            for script in script_tags:
+                script_content = script.string
+                if script_content and 'pinimg.com' in script_content:
+                    pattern = r'https://i\.pinimg\.com/[^"\'}\s]+'
+                    found_urls = re.findall(pattern, script_content)
+                    for url in found_urls:
+                        if '/originals/' in url or '/736x/' in url or '/564x/' in url:
                             clean_url = url.replace('/236x/', '/originals/').replace('/474x/', '/originals/').replace('/564x/', '/originals/')
-                            image_urls.append(clean_url)
-                
-                # Try src attribute
-                if src and 'pinimg.com' in src and src not in image_urls:
-                    clean_url = src.replace('/236x/', '/originals/').replace('/474x/', '/originals/').replace('/564x/', '/originals/')
-                    image_urls.append(clean_url)
-                
-                if len(image_urls) >= max_images:
-                    break
-            
-            # Also try extracting from page content/scripts
-            if len(image_urls) < 5:
-                content = page.content()
-                pattern = r'https://i\.pinimg\.com/[^"\'}\s]+'
-                found_urls = re.findall(pattern, content)
-                for url in found_urls:
-                    if ('/originals/' in url or '/736x/' in url or '/564x/' in url) and url not in image_urls:
-                        clean_url = url.replace('/236x/', '/originals/').replace('/474x/', '/originals/').replace('/564x/', '/originals/')
-                        image_urls.append(clean_url)
-                        if len(image_urls) >= max_images:
-                            break
-            
-            browser.close()
+                            if clean_url not in image_urls:
+                                image_urls.append(clean_url)
+                                if len(image_urls) >= max_images:
+                                    break
         
         # Clean and validate URLs
         validated_urls = []
         for url in image_urls[:max_images]:
-            if url.startswith('http') and 'pinimg.com' in url:
+            if url.startswith('http') and ('pinimg.com' in url or 'pinterest.com' in url):
                 validated_urls.append(url)
+        
+        if len(validated_urls) < MIN_REQUIRED_IMAGES:
+            raise Exception(
+                f"Pinterest board scraping is unreliable due to bot detection and JavaScript rendering. "
+                f"Found only {len(validated_urls)} images (need at least {MIN_REQUIRED_IMAGES}). "
+                f"Please use the 'Manual Image URLs' option instead: "
+                f"copy image URLs from your Pinterest board and paste them below."
+            )
         
         return validated_urls
     
-    except ImportError:
-        raise Exception("Playwright not installed. Please install with: pip install playwright && playwright install chromium")
+    except requests.RequestException as e:
+        raise Exception(
+            f"Failed to access Pinterest board: {str(e)}. "
+            f"Pinterest blocks automated access. Please use the 'Manual Image URLs' option instead."
+        )
     except Exception as e:
-        raise Exception(f"Error extracting Pinterest images: {str(e)}")
+        if "unreliable" in str(e) or "Manual Image URLs" in str(e):
+            raise  # Re-raise our custom message
+        raise Exception(
+            f"Pinterest board scraping failed: {str(e)}. "
+            f"Please use the 'Manual Image URLs' option for reliable results."
+        )
 
 
 def validate_pinterest_url(url: str) -> bool:

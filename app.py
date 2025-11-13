@@ -40,19 +40,11 @@ with col1:
     
     input_method = st.radio(
         "Choose input method:",
-        ["Pinterest Board URL", "Manual Image URLs (Workaround)"],
-        help="Pinterest may block automated scraping. Use manual URLs if automatic scraping fails."
+        ["Manual Image URLs (Recommended)", "Pinterest Board URL (May Not Work)"],
+        help="Pinterest actively blocks automated scraping. Manual URLs are the most reliable method."
     )
     
-    if input_method == "Pinterest Board URL":
-        pinterest_url = st.text_input(
-            "Pinterest Board URL",
-            value=st.session_state.pinterest_url,
-            placeholder="https://www.pinterest.com/yourname/your-board/",
-            help="Paste the URL of your public Pinterest wedding inspiration board"
-        )
-        manual_urls = None
-    else:
+    if input_method == "Manual Image URLs (Recommended)":
         st.info("💡 **How to get image URLs from Pinterest:**\n1. Open your board in a browser\n2. Right-click on images → Copy image address\n3. Paste 5-15 image URLs below (one per line)")
         manual_urls_text = st.text_area(
             "Image URLs (one per line)",
@@ -61,6 +53,15 @@ with col1:
         )
         manual_urls = [url.strip() for url in manual_urls_text.split('\n') if url.strip()]
         pinterest_url = None
+    else:
+        st.warning("⚠️ **Note:** Pinterest actively blocks automated scraping. This option often fails. If you encounter errors, please use Manual Image URLs instead.")
+        pinterest_url = st.text_input(
+            "Pinterest Board URL",
+            value=st.session_state.pinterest_url,
+            placeholder="https://www.pinterest.com/yourname/your-board/",
+            help="Paste the URL of your public Pinterest wedding inspiration board"
+        )
+        manual_urls = None
     
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
     
@@ -75,7 +76,7 @@ with col1:
     
     if generate_button or regenerate_button:
         # Validate inputs based on selected method
-        if input_method == "Pinterest Board URL":
+        if input_method == "Pinterest Board URL (May Not Work)":
             if not pinterest_url:
                 st.error("Please enter a Pinterest board URL")
                 st.stop()
@@ -94,7 +95,8 @@ with col1:
             start_time = time.time()
             
             # Get image URLs based on input method
-            if input_method == "Pinterest Board URL":
+            if input_method == "Pinterest Board URL (May Not Work)":
+                assert pinterest_url is not None  # Validated above
                 st.session_state.pinterest_url = pinterest_url
                 with st.spinner("🔍 Extracting images from Pinterest board..."):
                     image_urls = extract_pinterest_images(pinterest_url, max_images=25)
@@ -114,6 +116,7 @@ with col1:
                         st.success(f"✓ Found {len(image_urls)} images (analyzing top {analyzed_count} for optimal performance)")
             else:
                 # Manual image URLs
+                assert manual_urls is not None  # Validated above
                 image_urls = manual_urls
                 analyzed_count = min(10, len(image_urls))
                 st.success(f"✓ Using {len(image_urls)} manually provided images (analyzing top {analyzed_count})")

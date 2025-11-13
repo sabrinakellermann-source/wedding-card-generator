@@ -58,14 +58,29 @@ Preferred communication style: Simple, everyday language.
 - **Configuration**: Custom base URL via `AI_INTEGRATIONS_GEMINI_BASE_URL`
 - **Rate Limiting**: Implements exponential backoff retry logic (7 attempts, 2-128 second delays)
 
-## Web Scraping
-- **Pinterest Data Extraction**: BeautifulSoup-based scraping of public Pinterest boards
-- **Image Sources**: Meta tags (og:image) and img tags with Pinterest CDN URLs (pinimg.com)
-- **Critical Limitation**: Pinterest has strong bot detection and serves JavaScript-heavy pages that block automated scraping as of November 2024
-- **Workaround**: Manual image URL input option added - users can copy image URLs directly from Pinterest and paste them into the app
+## Web Scraping & Image Input
+- **Primary Input Method**: Manual image URL entry (recommended)
+  - Users copy image URLs directly from Pinterest boards and paste into the app
+  - Bypasses all Pinterest bot detection and JavaScript rendering issues
+  - Images downloaded as base64 data and sent to Gemini (bypasses robots.txt restrictions)
+  - Proven reliable for prototype phase
+- **Alternative Input Method**: Pinterest board URL scraping (unreliable)
+  - BeautifulSoup-based scraping attempts to extract images from board HTML
+  - Success rate is low due to Pinterest's bot detection and JavaScript-heavy pages
+  - Included for convenience but clearly marked as "May Not Work" in UI
+  - Gracefully fails with helpful error messages directing users to manual input
+- **Pinterest Scraping Challenges Encountered**:
+  - Bot detection blocks automated requests even with realistic user agents
+  - JavaScript-heavy pages require full browser rendering (static HTML insufficient)
+  - Playwright requires system dependencies (libnspr4, libnss3, etc.) unavailable in NixOS environment
+  - Pinterest robots.txt blocks AI services (including Gemini/Vertex AI) from accessing images
+- **Solutions Implemented**:
+  - Base64 image download: App downloads images and sends as data URIs to bypass robots.txt
+  - Manual URL input: Most reliable method for prototype, requires minimal user effort
+  - Clear UI messaging: Users guided to recommended approach with helpful instructions
 - **URL Validation**: Strict allowlist-based validation prevents SSRF attacks while supporting all legitimate Pinterest domains (pinterest.com, pinterest.com.au, de.pinterest.com, etc.)
 - **Minimum Image Requirement**: At least 5 images required for meaningful aesthetic analysis
-- **Future Enhancement**: For production deployment, recommend Pinterest API integration or server-side rendering solution to handle JavaScript-heavy pages
+- **Production Recommendation**: For kartenmacherei.de production deployment, integrate official Pinterest API for reliable, supported access to board data without scraping limitations
 
 ## UI Framework
 - **Streamlit**: Web application framework for rapid prototyping
