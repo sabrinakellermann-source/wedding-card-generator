@@ -545,6 +545,127 @@ OUTPUT: A flat, print-ready wedding invitation card design (not a mockup, just t
     return prompt
 
 
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=64),
+    retry=retry_if_exception(is_rate_limit_error),
+    reraise=True
+)
+def generate_wedding_card_image(prompt: str) -> str:
+    """
+    Generate a wedding invitation image using Gemini 2.5 Flash Image (nano banana).
+    
+    Args:
+        prompt: Image generation prompt describing the wedding invitation
+        
+    Returns:
+        File path to the saved image
+    """
+    import base64
+    from pathlib import Path
+    from datetime import datetime
+    
+    print("[IMAGE GENERATION] Calling Gemini 2.5 Flash Image (nano banana)...")
+    
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-image",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_modalities=["TEXT", "IMAGE"]
+        )
+    )
+    
+    if not response.candidates:
+        raise ValueError("No candidates in response from image generation")
+    
+    candidate = response.candidates[0]
+    if not candidate.content or not candidate.content.parts:
+        raise ValueError("No content parts in image generation response")
+    
+    # Extract and aggregate all image parts from response (handles multi-part responses)
+    all_image_bytes = []
+    mime_type = "image/png"
+    
+    for part in candidate.content.parts:
+        if hasattr(part, 'inline_data') and part.inline_data:
+            mime_type = part.inline_data.mime_type or mime_type
+            image_data = part.inline_data.data
+            
+            # Handle image data from Gemini
+            # Based on testing: Gemini returns raw image bytes directly
+            if isinstance(image_data, bytes):
+                all_image_bytes.append(image_data)
+                print(f"[IMAGE GENERATION] Received {len(image_data)} bytes from Gemini (raw image part)")
+            elif isinstance(image_data, str):
+                # If it's a string, it's base64-encoded - decode it
+                decoded_bytes = base64.b64decode(image_data)
+                all_image_bytes.append(decoded_bytes)
+                print(f"[IMAGE GENERATION] Decoded base64 string ({len(image_data)} chars → {len(decoded_bytes)} bytes)")
+            else:
+                raise ValueError(f"Unexpected image data type: {type(image_data)}")
+    
+    if not all_image_bytes:
+        raise ValueError("No image data found in Gemini response")
+    
+    # Concatenate all parts (handles multi-part streaming responses)
+    image_bytes = b''.join(all_image_bytes)
+    print(f"[IMAGE GENERATION] Aggregated {len(all_image_bytes)} part(s) → {len(image_bytes)} total bytes")
+    
+    # Determine file extension from MIME type - support PNG, JPEG, WebP
+    mime_lower = mime_type.lower()
+    if "png" in mime_lower:
+        ext = "png"
+    elif "jpeg" in mime_lower or "jpg" in mime_lower:
+        ext = "jpg"
+    elif "webp" in mime_lower:
+        ext = "webp"
+    else:
+        # Unsupported format - try to detect from bytes or default to PNG
+        print(f"[IMAGE GENERATION] ⚠️ Unsupported MIME type {mime_type}")
+        if image_bytes.startswith(b'\x89PNG'):
+            ext = "png"
+        elif image_bytes.startswith(b'\xff\xd8\xff'):
+            ext = "jpg"
+        elif image_bytes.startswith(b'RIFF') and b'WEBP' in image_bytes[:20]:
+            ext = "webp"
+        else:
+            raise ValueError(f"Unsupported image format: {mime_type} and unable to detect from bytes")
+    
+    # Save image to file
+    output_dir = Path("generated_wedding_cards")
+    output_dir.mkdir(exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_path = output_dir / f"wedding_card_{timestamp}.{ext}"
+    
+    output_path.write_bytes(image_bytes)
+    
+    # Validate the saved image using PIL and convert WebP to PNG if needed
+    try:
+        from PIL import Image
+        with Image.open(output_path) as img:
+            img.verify()  # Verify it's a valid image
+        
+        # If it's WebP, convert to PNG for better Streamlit compatibility
+        if ext == "webp":
+            print(f"[IMAGE GENERATION] Converting WebP to PNG for better compatibility...")
+            with Image.open(output_path) as img:
+                img.load()  # Load after verify (verify invalidates the image)
+                png_path = output_path.with_suffix('.png')
+                img.save(png_path, 'PNG')
+            output_path.unlink()  # Delete the WebP file
+            output_path = png_path
+            print(f"[IMAGE GENERATION] ✅ Converted to PNG: {output_path}")
+        
+        print(f"[IMAGE GENERATION] ✅ Saved and validated AI-generated image: {output_path} ({len(image_bytes)} bytes)")
+        return str(output_path)
+    except Exception as validation_error:
+        # Image is corrupted - delete it and raise error
+        output_path.unlink(missing_ok=True)
+        print(f"[IMAGE GENERATION] ❌ Image validation failed: {validation_error}")
+        raise ValueError(f"Generated image failed validation: {validation_error}")
+
+
 def generate_wedding_card_from_pinterest(
     image_urls: List[str], 
     progress_callback=None
@@ -576,15 +697,15 @@ def generate_wedding_card_from_pinterest(
     
     design_brief = synthesize_design_brief(descriptions)
     
-    # Step 2c: Brief-to-Card JSON (for structured metadata)
+    # Step 2c: Brief-to-Card JSON (for validation - no metadata yet)
     if progress_callback:
         progress_callback("Generating design structure...", 60, 100)
     
     card_design = generate_card_design_json(design_brief)
     
-    # Step 2d: RENDER FINAL CARD WITH AI IMAGE GENERATION
+    # Step 2d: RENDER FINAL CARD WITH AI IMAGE GENERATION (nano banana)
     if progress_callback:
-        progress_callback("Rendering final wedding invitation...", 80, 100)
+        progress_callback("Rendering your beautiful wedding invitation with AI...", 80, 100)
     
     # Create image generation prompt from the design brief
     image_prompt = create_image_generation_prompt(design_brief, card_design)
@@ -595,13 +716,33 @@ def generate_wedding_card_from_pinterest(
     print(image_prompt)
     print("="*80 + "\n")
     
-    # Add metadata to card design
-    card_design["_design_brief"] = design_brief
-    card_design["_source_images_count"] = len(image_urls)
-    card_design["_image_generation_prompt"] = image_prompt
-    card_design["_rendering_method"] = "ai_generated"
+    # Generate the actual wedding invitation image
+    generated_image_path = None
+    image_generation_error = None
+    
+    try:
+        generated_image_path = generate_wedding_card_image(image_prompt)
+    except Exception as e:
+        print(f"⚠️ Image generation failed: {str(e)}")
+        print("Falling back to JSON-only output")
+        image_generation_error = str(e)
+    
+    # Create result with metadata (separate from validated card design)
+    result = {
+        "card": card_design.get("card"),
+        "elements": card_design.get("elements"),
+        # Metadata fields (not part of schema validation)
+        "_design_brief": design_brief,
+        "_source_images_count": len(image_urls),
+        "_image_generation_prompt": image_prompt,
+        "_rendering_method": "ai_generated",
+        "_generated_image_path": generated_image_path,
+    }
+    
+    if image_generation_error:
+        result["_image_generation_error"] = image_generation_error
     
     if progress_callback:
         progress_callback("Complete!", 100, 100)
     
-    return card_design
+    return result

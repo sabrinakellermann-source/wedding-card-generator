@@ -154,18 +154,37 @@ if st.session_state.generated_design:
     
     with col_preview:
         st.markdown("### Preview")
-        try:
-            card_image = render_card_design(design, dpi=150)
-            st.image(card_image, caption="Your Wedding Invitation Design", use_container_width=True)
-        except Exception as e:
-            st.error(f"Error rendering preview: {str(e)}")
-            st.info("Showing design details instead:")
+        
+        # Try to display AI-generated image first (preferred)
+        generated_image_path = design.get('_generated_image_path')
+        
+        if generated_image_path:
+            try:
+                st.image(generated_image_path, caption="Your AI-Generated Wedding Invitation ✨", use_container_width=True)
+                st.success("🎨 Generated with Gemini 2.5 Flash Image (nano banana)")
+            except Exception as e:
+                st.error(f"Error displaying AI-generated image: {str(e)}")
+                st.info("Falling back to structured preview...")
+                generated_image_path = None
+        
+        # Fallback to PIL render or details if AI generation failed
+        if not generated_image_path:
+            if '_image_generation_error' in design:
+                st.warning(f"⚠️ AI image generation failed: {design['_image_generation_error']}")
             
-            card_info = design.get('card', {})
-            st.markdown(f"""
-            **Background Color**: {card_info.get('backgroundColor', '#FFFFFF')}  
-            **Dimensions**: {card_info.get('width', 148)}mm × {card_info.get('height', 105)}mm
-            """)
+            try:
+                card_image = render_card_design(design, dpi=150)
+                st.image(card_image, caption="Design Preview (PIL Renderer)", use_container_width=True)
+                st.info("Note: This is a simplified preview. For Pinterest-quality designs, AI image generation is recommended.")
+            except Exception as e:
+                st.error(f"Error rendering preview: {str(e)}")
+                st.info("Showing design details instead:")
+                
+                card_info = design.get('card', {})
+                st.markdown(f"""
+                **Background Color**: {card_info.get('backgroundColor', '#FFFFFF')}  
+                **Dimensions**: {card_info.get('width', 148)}mm × {card_info.get('height', 105)}mm
+                """)
     
     with col_details:
         st.markdown("### Design Details")
