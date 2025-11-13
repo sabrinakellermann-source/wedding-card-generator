@@ -14,6 +14,16 @@ st.set_page_config(
     layout="wide"
 )
 
+def load_css():
+    """Load custom CSS for kartenmacherei-inspired design"""
+    try:
+        with open('styles.css') as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    except FileNotFoundError:
+        pass
+
+load_css()
+
 st.title("💒 Pinterest-Powered Wedding Invitation Generator")
 st.markdown("""
 Transform your Pinterest wedding inspiration into a beautiful, personalized invitation design.

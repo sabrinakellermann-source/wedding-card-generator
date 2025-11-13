@@ -1,5 +1,19 @@
 /* Custom CSS for kartenmacherei-inspired design */
 
+/* Design System Color Variables */
+:root {
+    --primary-teal: #1d4d4f;
+    --primary-teal-hover: #2a6366;
+    --background-beige: #f5f3f0;
+    --card-white: #ffffff;
+    --text-dark: #2c2c2c;
+    --border-light: #d0d0d0;
+    --border-lighter: #e0e0e0;
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
 /* Main container styling */
 .main {
     background-color: #f5f3f0;
@@ -12,49 +26,49 @@
 
 /* Button styling to match teal design */
 .stButton > button {
-    background-color: #1d4d4f;
+    background-color: var(--primary-teal);
     color: white;
     border: none;
     border-radius: 4px;
     padding: 0.5rem 1.5rem;
     font-weight: 500;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
 }
 
 .stButton > button:hover {
-    background-color: #2a6366;
+    background-color: var(--primary-teal-hover);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
 }
 
 .stButton > button[kind="primary"] {
-    background-color: #1d4d4f;
+    background-color: var(--primary-teal);
 }
 
 .stButton > button[kind="secondary"] {
     background-color: transparent;
-    border: 2px solid #1d4d4f;
-    color: #1d4d4f;
+    border: 2px solid var(--primary-teal);
+    color: var(--primary-teal);
 }
 
 .stButton > button[kind="secondary"]:hover {
-    background-color: #1d4d4f;
+    background-color: var(--primary-teal);
     color: white;
 }
 
 /* Input fields */
 .stTextInput > div > div > input {
     border-radius: 4px;
-    border: 1px solid #d0d0d0;
+    border: 1px solid var(--border-light);
     padding: 0.75rem;
-    background-color: white;
+    background-color: var(--card-white);
     transition: border-color 0.3s ease;
 }
 
 .stTextInput > div > div > input:focus {
-    border-color: #1d4d4f;
-    box-shadow: 0 0 0 1px #1d4d4f;
+    border-color: var(--primary-teal);
+    box-shadow: 0 0 0 1px var(--primary-teal);
 }
 
 /* Info boxes and containers */
@@ -66,53 +80,53 @@
 
 /* Expander styling */
 .streamlit-expanderHeader {
-    background-color: white;
+    background-color: var(--card-white);
     border-radius: 4px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-lighter);
     font-weight: 500;
-    color: #2c2c2c;
+    color: var(--text-dark);
 }
 
 /* Metric styling */
 .stMetric {
-    background-color: white;
+    background-color: var(--card-white);
     padding: 1rem;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--shadow-md);
 }
 
 /* Title and header styling */
 h1 {
-    color: #1d4d4f;
+    color: var(--primary-teal);
     font-weight: 600;
 }
 
 h2, h3 {
-    color: #2c2c2c;
+    color: var(--text-dark);
     font-weight: 500;
 }
 
 /* Divider styling */
 hr {
-    border-color: #d0d0d0;
+    border-color: var(--border-light);
     opacity: 0.3;
 }
 
 /* Download button special styling */
 .stDownloadButton > button {
-    background-color: white;
-    border: 2px solid #1d4d4f;
-    color: #1d4d4f;
+    background-color: var(--card-white);
+    border: 2px solid var(--primary-teal);
+    color: var(--primary-teal);
 }
 
 .stDownloadButton > button:hover {
-    background-color: #1d4d4f;
+    background-color: var(--primary-teal);
     color: white;
 }
 
 /* Progress bar */
 .stProgress > div > div > div > div {
-    background-color: #1d4d4f;
+    background-color: var(--primary-teal);
 }
 
 /* Success message */
@@ -139,16 +153,16 @@ hr {
     color: #1976d2;
 }
 
-/* Sidebar styling (if used) */
-.css-1d391kg {
-    background-color: white;
+/* Sidebar styling (using stable selector) */
+[data-testid="stSidebar"] {
+    background-color: var(--card-white);
 }
 
 /* Clean card appearance for image containers */
 .stImage {
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-lg);
 }
 
 /* Column containers */
@@ -158,12 +172,12 @@ hr {
 
 /* Markdown content */
 .stMarkdown {
-    color: #2c2c2c;
+    color: var(--text-dark);
 }
 
 /* Links */
 a {
-    color: #1d4d4f;
+    color: var(--primary-teal);
     text-decoration: none;
 }
 
@@ -173,5 +187,5 @@ a:hover {
 
 /* Spinner */
 .stSpinner > div {
-    border-top-color: #1d4d4f;
+    border-top-color: var(--primary-teal);
 }
