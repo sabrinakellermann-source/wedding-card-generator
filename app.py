@@ -1,10 +1,9 @@
 import streamlit as st
 import json
 import time
-import os
 from datetime import datetime
 from pinterest_scraper import validate_pinterest_url, MIN_REQUIRED_IMAGES
-from pinterest_api import PinterestAPI, PinterestAPIError
+from pinterest_dl_scraper import extract_pinterest_board_images, PinterestDLError
 from ai_card_generator import generate_wedding_card_from_pinterest
 from card_schema import validate_card_design
 from card_renderer import render_card_design
@@ -27,40 +26,6 @@ if 'pinterest_url' not in st.session_state:
     st.session_state.pinterest_url = ""
 if 'generation_count' not in st.session_state:
     st.session_state.generation_count = 0
-if 'pinterest_access_token' not in st.session_state:
-    st.session_state.pinterest_access_token = None
-if 'oauth_state' not in st.session_state:
-    st.session_state.oauth_state = None
-
-# Handle OAuth callback
-query_params = st.query_params
-if 'code' in query_params:
-    auth_code = query_params['code']
-    returned_state = query_params.get('state')
-    
-    # Validate OAuth state to prevent CSRF attacks
-    if not returned_state or returned_state != st.session_state.oauth_state:
-        st.error("❌ Authentication failed: Invalid state parameter. Please try again.")
-        st.query_params.clear()
-        st.session_state.oauth_state = None
-        st.stop()
-    
-    try:
-        api = PinterestAPI()
-        redirect_uri = os.getenv('REPLIT_DEV_DOMAIN', 'http://localhost:5000')
-        if not redirect_uri.startswith('http'):
-            redirect_uri = f'https://{redirect_uri}'
-        
-        access_token = api.exchange_code_for_token(auth_code, redirect_uri)
-        st.session_state.pinterest_access_token = access_token
-        st.session_state.oauth_state = None  # Clear state after successful auth
-        st.success("✅ Successfully authenticated with Pinterest!")
-        st.query_params.clear()
-        st.rerun()
-    except PinterestAPIError as e:
-        st.error(f"Authentication failed: {str(e)}")
-        st.session_state.oauth_state = None
-        st.query_params.clear()
 
 
 def progress_callback(message: str, current: int, total: int):
@@ -101,54 +66,17 @@ with col1:
             st.error("❌ Invalid URL format. Please enter a Pinterest board URL (e.g., https://pinterest.com/username/board-name/) — search results and individual pins are not supported.")
             st.stop()
         
-        # Check if we need to authenticate with Pinterest API
-        if not st.session_state.pinterest_access_token:
-            st.warning("🔐 **Pinterest API Authentication Required**")
-            st.markdown("""
-            To access your Pinterest boards, you need to connect with the Pinterest API:
-            
-            1. Click the button below to authenticate with Pinterest
-            2. Log in to your Pinterest account if prompted
-            3. Authorize this app to access your boards
-            4. You'll be redirected back here automatically
-            """)
-            
-            # Generate OAuth URL with secure random state
-            try:
-                import secrets
-                
-                api = PinterestAPI()
-                redirect_uri = os.getenv('REPLIT_DEV_DOMAIN', 'http://localhost:5000')
-                if not redirect_uri.startswith('http'):
-                    redirect_uri = f'https://{redirect_uri}'
-                
-                # Generate cryptographically secure random state for CSRF protection
-                oauth_state = secrets.token_urlsafe(32)
-                st.session_state.oauth_state = oauth_state
-                
-                auth_url = api.get_oauth_url(redirect_uri, state=oauth_state)
-                
-                st.markdown(f"### [🔗 Connect Pinterest Account]({auth_url})")
-                st.info("💡 **Note:** Make sure the board you want to use is created by the Pinterest account you're logging in with.")
-                
-            except PinterestAPIError as e:
-                st.error(f"Error setting up Pinterest authentication: {str(e)}")
-            
-            st.stop()
-        
         try:
             start_time = time.time()
             
-            # Use Pinterest API to fetch images
+            # Use pinterest-dl to scrape the board (no authentication required!)
             st.session_state.pinterest_url = pinterest_url
-            with st.spinner("🔍 Fetching pins from Pinterest board via API..."):
+            with st.spinner("🔍 Fetching pins from Pinterest board..."):
                 try:
-                    api = PinterestAPI()
-                    api.set_access_token(st.session_state.pinterest_access_token)
-                    image_urls = api.get_images_from_board_url(pinterest_url, max_images=25)
+                    image_urls = extract_pinterest_board_images(pinterest_url, max_images=25)
                     
                     if not image_urls:
-                        st.error(f"❌ No pins found on this board. Please check the URL and ensure the board contains wedding inspiration images.")
+                        st.error(f"❌ No pins found on this board. Please check the URL and ensure the board is public and contains images.")
                         st.stop()
                     elif len(image_urls) < MIN_REQUIRED_IMAGES:
                         st.error(f"❌ Insufficient pins: Found only {len(image_urls)} pin(s). At least {MIN_REQUIRED_IMAGES} pins are required to create a meaningful design. Please use a board with more wedding inspiration images.")
@@ -161,11 +89,8 @@ with col1:
                         analyzed_count = min(10, len(image_urls))
                         st.success(f"✓ Found {len(image_urls)} pins (analyzing top {analyzed_count} for optimal performance)")
                         
-                except PinterestAPIError as e:
-                    st.error(f"❌ Pinterest API Error: {str(e)}")
-                    if "Authentication failed" in str(e) or "Access forbidden" in str(e):
-                        st.session_state.pinterest_access_token = None
-                        st.info("Please re-authenticate with Pinterest.")
+                except PinterestDLError as e:
+                    st.error(f"❌ {str(e)}")
                     st.stop()
             
             progress_bar = st.progress(0)
@@ -287,13 +212,13 @@ with st.expander("ℹ️ About This Prototype"):
     
     This is an **AI Core Proof of Concept** for kartenmacherei.de that demonstrates:
     
-    - **Pinterest Integration**: Extract and analyze wedding inspiration images
+    - **No Authentication Required**: Access any public Pinterest board instantly
     - **AI-Powered Design**: Multi-stage AI pipeline using Gemini vision models
     - **Structured Output**: Generate production-ready JSON design specifications
     - **Brand Alignment**: Designs follow kartenmacherei.de aesthetic standards
     
     #### Technology Stack
-    - **Web Scraping**: BeautifulSoup for Pinterest board extraction
+    - **Pinterest Scraping**: pinterest-dl for anonymous board access
     - **AI Analysis**: Google Gemini 2.5 Flash & Pro (multimodal vision)
     - **Design Schema**: Pydantic-validated JSON output
     - **Rendering**: PIL for visual preview generation
