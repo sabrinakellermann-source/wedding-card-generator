@@ -55,9 +55,17 @@ def analyze_single_image(image_url: str) -> str:
     Raises:
         Exception: If analysis fails after retries
     """
-    import base64
+    print("[DEBUG v2.0] analyze_single_image called - using types.Part(inline_data=types.Blob()) API")
     import requests
-    from io import BytesIO
+    
+    # Create a fresh Gemini client per request for thread safety
+    thread_client = genai.Client(
+        api_key=AI_INTEGRATIONS_GEMINI_API_KEY,
+        http_options={
+            'api_version': '',
+            'base_url': AI_INTEGRATIONS_GEMINI_BASE_URL   
+        }
+    )
     
     # Download the image (bypasses Pinterest robots.txt blocking of Gemini)
     headers = {
@@ -65,9 +73,6 @@ def analyze_single_image(image_url: str) -> str:
     }
     response = requests.get(image_url, headers=headers, timeout=10)
     response.raise_for_status()
-    
-    # Convert to base64
-    image_data = base64.b64encode(response.content).decode('utf-8')
     
     # Determine MIME type from URL or content
     mime_type = "image/jpeg"
@@ -88,17 +93,19 @@ Focus on:
 
 Be specific and detailed in your description."""
     
-    response = client.models.generate_content(
+    api_response = thread_client.models.generate_content(
         model="gemini-2.5-flash",
         contents=[
             prompt,
-            types.Part.from_data(
-                data=image_data,
-                mime_type=mime_type
+            types.Part(
+                inline_data=types.Blob(
+                    mime_type=mime_type,
+                    data=response.content
+                )
             )
         ]
     )
-    return response.text or ""
+    return api_response.text or ""
 
 
 def analyze_images_batch(image_urls: List[str], progress_callback=None) -> List[str]:
@@ -122,15 +129,26 @@ def analyze_images_batch(image_urls: List[str], progress_callback=None) -> List[
         try:
             description = analyze_single_image(url)
             if progress_callback:
-                # Calculate progress as percentage (0-40 for image analysis phase)
-                progress_pct = int((i + 1) / len(sampled_urls) * 40)
-                progress_callback(f"Analyzing image {i + 1}/{len(sampled_urls)}...", progress_pct, 100)
+                try:
+                    # Calculate progress as percentage (0-40 for image analysis phase)
+                    progress_pct = int((i + 1) / len(sampled_urls) * 40)
+                    progress_callback(f"Analyzing image {i + 1}/{len(sampled_urls)}...", progress_pct, 100)
+                except Exception:
+                    # Silently ignore Streamlit NoSessionContext errors from worker threads
+                    pass
             return (i, description)
         except Exception as e:
-            print(f"Error analyzing image {url}: {str(e)}")
+            import traceback
+            error_details = f"Error analyzing image {url}: {type(e).__name__}: {str(e)}"
+            print(error_details)
+            print(f"Full traceback:\n{traceback.format_exc()}")
             if progress_callback:
-                progress_pct = int((i + 1) / len(sampled_urls) * 40)
-                progress_callback(f"Analyzing image {i + 1}/{len(sampled_urls)}...", progress_pct, 100)
+                try:
+                    progress_pct = int((i + 1) / len(sampled_urls) * 40)
+                    progress_callback(f"Analyzing image {i + 1}/{len(sampled_urls)}...", progress_pct, 100)
+                except Exception:
+                    # Silently ignore Streamlit NoSessionContext errors from worker threads
+                    pass
             raise
     
     descriptions: List[str] = [""] * len(sampled_urls)
