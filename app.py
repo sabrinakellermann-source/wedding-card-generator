@@ -1,8 +1,10 @@
 import streamlit as st
 import json
 import time
+import os
 from datetime import datetime
-from pinterest_scraper import extract_pinterest_images, validate_pinterest_url, MIN_REQUIRED_IMAGES
+from pinterest_scraper import validate_pinterest_url, MIN_REQUIRED_IMAGES
+from pinterest_api import PinterestAPI, PinterestAPIError
 from ai_card_generator import generate_wedding_card_from_pinterest
 from card_schema import validate_card_design
 from card_renderer import render_card_design
@@ -25,6 +27,28 @@ if 'pinterest_url' not in st.session_state:
     st.session_state.pinterest_url = ""
 if 'generation_count' not in st.session_state:
     st.session_state.generation_count = 0
+if 'pinterest_access_token' not in st.session_state:
+    st.session_state.pinterest_access_token = None
+if 'auth_state' not in st.session_state:
+    st.session_state.auth_state = None
+
+# Handle OAuth callback
+query_params = st.query_params
+if 'code' in query_params:
+    auth_code = query_params['code']
+    try:
+        api = PinterestAPI()
+        redirect_uri = os.getenv('REPLIT_DEV_DOMAIN', 'http://localhost:5000')
+        if not redirect_uri.startswith('http'):
+            redirect_uri = f'https://{redirect_uri}'
+        
+        access_token = api.exchange_code_for_token(auth_code, redirect_uri)
+        st.session_state.pinterest_access_token = access_token
+        st.success("✅ Successfully authenticated with Pinterest!")
+        st.query_params.clear()
+        st.rerun()
+    except PinterestAPIError as e:
+        st.error(f"Authentication failed: {str(e)}")
 
 
 def progress_callback(message: str, current: int, total: int):
@@ -38,30 +62,12 @@ col1, col2 = st.columns([2, 1])
 with col1:
     st.subheader("📌 Enter Your Pinterest Board")
     
-    input_method = st.radio(
-        "Choose input method:",
-        ["Manual Image URLs (Recommended)", "Pinterest Board URL (May Not Work)"],
-        help="Pinterest actively blocks automated scraping. Manual URLs are the most reliable method."
+    pinterest_url = st.text_input(
+        "Pinterest Board URL",
+        value=st.session_state.pinterest_url,
+        placeholder="https://www.pinterest.com/yourname/your-board/",
+        help="Paste the URL of your Pinterest wedding inspiration board"
     )
-    
-    if input_method == "Manual Image URLs (Recommended)":
-        st.info("💡 **How to get image URLs from Pinterest:**\n1. Open your board in a browser\n2. Right-click on images → Copy image address\n3. Paste 5-15 image URLs below (one per line)")
-        manual_urls_text = st.text_area(
-            "Image URLs (one per line)",
-            height=150,
-            placeholder="https://i.pinimg.com/originals/...\nhttps://i.pinimg.com/736x/...\n..."
-        )
-        manual_urls = [url.strip() for url in manual_urls_text.split('\n') if url.strip()]
-        pinterest_url = None
-    else:
-        st.warning("⚠️ **Note:** Pinterest actively blocks automated scraping. This option often fails. If you encounter errors, please use Manual Image URLs instead.")
-        pinterest_url = st.text_input(
-            "Pinterest Board URL",
-            value=st.session_state.pinterest_url,
-            placeholder="https://www.pinterest.com/yourname/your-board/",
-            help="Paste the URL of your public Pinterest wedding inspiration board"
-        )
-        manual_urls = None
     
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
     
@@ -75,51 +81,74 @@ with col1:
             regenerate_button = False
     
     if generate_button or regenerate_button:
-        # Validate inputs based on selected method
-        if input_method == "Pinterest Board URL (May Not Work)":
-            if not pinterest_url:
-                st.error("Please enter a Pinterest board URL")
-                st.stop()
-            elif not validate_pinterest_url(pinterest_url):
-                st.error("❌ Invalid URL format. Please enter a Pinterest board URL (e.g., https://pinterest.com/username/board-name/) — search results and individual pins are not supported.")
-                st.stop()
-        else:
-            if not manual_urls:
-                st.error("Please paste at least 5 image URLs (one per line)")
-                st.stop()
-            elif len(manual_urls) < MIN_REQUIRED_IMAGES:
-                st.error(f"❌ Please provide at least {MIN_REQUIRED_IMAGES} image URLs for meaningful design generation")
-                st.stop()
+        # Validate Pinterest board URL
+        if not pinterest_url:
+            st.error("Please enter a Pinterest board URL")
+            st.stop()
+        elif not validate_pinterest_url(pinterest_url):
+            st.error("❌ Invalid URL format. Please enter a Pinterest board URL (e.g., https://pinterest.com/username/board-name/) — search results and individual pins are not supported.")
+            st.stop()
+        
+        # Check if we need to authenticate with Pinterest API
+        if not st.session_state.pinterest_access_token:
+            st.warning("🔐 **Pinterest API Authentication Required**")
+            st.markdown("""
+            To access your Pinterest boards, you need to connect with the Pinterest API:
+            
+            1. Click the button below to authenticate with Pinterest
+            2. Log in to your Pinterest account if prompted
+            3. Authorize this app to access your boards
+            4. You'll be redirected back here automatically
+            """)
+            
+            # Generate OAuth URL
+            try:
+                api = PinterestAPI()
+                redirect_uri = os.getenv('REPLIT_DEV_DOMAIN', 'http://localhost:5000')
+                if not redirect_uri.startswith('http'):
+                    redirect_uri = f'https://{redirect_uri}'
+                
+                auth_url = api.get_oauth_url(redirect_uri, state="wedding_card_auth")
+                
+                st.markdown(f"### [🔗 Connect Pinterest Account]({auth_url})")
+                st.info("💡 **Note:** Make sure the board you want to use is created by the Pinterest account you're logging in with.")
+                
+            except PinterestAPIError as e:
+                st.error(f"Error setting up Pinterest authentication: {str(e)}")
+            
+            st.stop()
         
         try:
             start_time = time.time()
             
-            # Get image URLs based on input method
-            if input_method == "Pinterest Board URL (May Not Work)":
-                assert pinterest_url is not None  # Validated above
-                st.session_state.pinterest_url = pinterest_url
-                with st.spinner("🔍 Extracting images from Pinterest board..."):
-                    image_urls = extract_pinterest_images(pinterest_url, max_images=25)
+            # Use Pinterest API to fetch images
+            st.session_state.pinterest_url = pinterest_url
+            with st.spinner("🔍 Fetching pins from Pinterest board via API..."):
+                try:
+                    api = PinterestAPI()
+                    api.set_access_token(st.session_state.pinterest_access_token)
+                    image_urls = api.get_images_from_board_url(pinterest_url, max_images=25)
                     
                     if not image_urls:
-                        st.error(f"❌ No images found on this Pinterest board. Please check the URL and ensure the board is public and contains wedding inspiration images.")
+                        st.error(f"❌ No pins found on this board. Please check the URL and ensure the board contains wedding inspiration images.")
                         st.stop()
                     elif len(image_urls) < MIN_REQUIRED_IMAGES:
-                        st.error(f"❌ Insufficient images: Found only {len(image_urls)} image(s). At least {MIN_REQUIRED_IMAGES} images are required to create a meaningful design. Please use a board with more wedding inspiration images.")
+                        st.error(f"❌ Insufficient pins: Found only {len(image_urls)} pin(s). At least {MIN_REQUIRED_IMAGES} pins are required to create a meaningful design. Please use a board with more wedding inspiration images.")
                         st.stop()
                     elif len(image_urls) < 10:
-                        st.warning(f"⚠️ Found {len(image_urls)} images. For best results, use a board with at least 10-15 images.")
+                        st.warning(f"⚠️ Found {len(image_urls)} pins. For best results, use a board with at least 10-15 pins.")
                         analyzed_count = len(image_urls)
-                        st.info(f"Analyzing all {analyzed_count} available images...")
+                        st.info(f"Analyzing all {analyzed_count} available pins...")
                     else:
                         analyzed_count = min(10, len(image_urls))
-                        st.success(f"✓ Found {len(image_urls)} images (analyzing top {analyzed_count} for optimal performance)")
-            else:
-                # Manual image URLs
-                assert manual_urls is not None  # Validated above
-                image_urls = manual_urls
-                analyzed_count = min(10, len(image_urls))
-                st.success(f"✓ Using {len(image_urls)} manually provided images (analyzing top {analyzed_count})")
+                        st.success(f"✓ Found {len(image_urls)} pins (analyzing top {analyzed_count} for optimal performance)")
+                        
+                except PinterestAPIError as e:
+                    st.error(f"❌ Pinterest API Error: {str(e)}")
+                    if "Authentication failed" in str(e) or "Access forbidden" in str(e):
+                        st.session_state.pinterest_access_token = None
+                        st.info("Please re-authenticate with Pinterest.")
+                    st.stop()
             
             progress_bar = st.progress(0)
             status_text = st.empty()
