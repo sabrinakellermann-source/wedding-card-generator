@@ -13,10 +13,29 @@ def get_font_for_type(font_type: str, size_mm: float, dpi: int = 300) -> ImageFo
     Get appropriate font for the given type.
     Falls back to default font if specific font not available.
     """
-    size_px = mm_to_pixels(size_mm * 0.35, dpi)
+    # Convert point size to pixels (1 pt = 1/72 inch)
+    size_px = int((size_mm / 25.4) * dpi * (1/72) * size_mm * 2)
     
+    # Map font types to system fonts
+    font_paths = {
+        'Script': ['/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf',
+                   '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf'],
+        'Serif': ['/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
+                  '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf'],
+        'Sans-Serif': ['/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                       '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']
+    }
+    
+    # Try to load the appropriate font
+    for font_path in font_paths.get(font_type, font_paths['Serif']):
+        try:
+            return ImageFont.truetype(font_path, size_px)
+        except:
+            continue
+    
+    # Ultimate fallback
     try:
-        return ImageFont.load_default()
+        return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', size_px)
     except:
         return ImageFont.load_default()
 
@@ -78,15 +97,41 @@ def render_decorative_element(
         )
     
     elif content == 'floral-branch':
-        for i in range(3):
-            leaf_y = y_px + (height_px // 3) * i
-            draw.ellipse(
-                [x_px + width_px - 15, leaf_y, x_px + width_px, leaf_y + 15],
-                outline=rgb_color,
-                width=2
-            )
-        draw.line([(x_px + width_px - 5, y_px), (x_px + width_px - 5, y_px + height_px)], 
-                  fill=rgb_color, width=2)
+        # Draw elegant curved branch
+        branch_x = x_px + width_px // 2
+        points = []
+        for i in range(10):
+            t = i / 9.0
+            curve_x = branch_x + int(width_px * 0.2 * (t - 0.5))
+            curve_y = y_px + int(height_px * t)
+            points.append((curve_x, curve_y))
+        
+        # Draw smooth branch curve
+        for i in range(len(points) - 1):
+            draw.line([points[i], points[i + 1]], fill=rgb_color, width=3)
+        
+        # Draw leaves along the branch
+        num_leaves = 5
+        for i in range(num_leaves):
+            t = (i + 0.5) / num_leaves
+            leaf_y = y_px + int(height_px * t)
+            leaf_x = branch_x + int(width_px * 0.2 * (t - 0.5))
+            
+            # Left leaf
+            left_pts = [
+                (leaf_x, leaf_y),
+                (leaf_x - int(width_px * 0.15), leaf_y - int(height_px * 0.04)),
+                (leaf_x - int(width_px * 0.1), leaf_y)
+            ]
+            draw.polygon(left_pts, fill=rgb_color)
+            
+            # Right leaf
+            right_pts = [
+                (leaf_x, leaf_y),
+                (leaf_x + int(width_px * 0.15), leaf_y + int(height_px * 0.04)),
+                (leaf_x + int(width_px * 0.1), leaf_y)
+            ]
+            draw.polygon(right_pts, fill=rgb_color)
     
     elif content == 'geometric-border':
         draw.rectangle(

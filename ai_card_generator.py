@@ -494,6 +494,57 @@ Now generate the JSON wedding invitation design that brings the design brief to 
         raise Exception("Failed to generate valid JSON card design")
 
 
+def create_image_generation_prompt(design_brief: str, card_json: Dict[str, Any]) -> str:
+    """
+    Convert design brief and card JSON into an image generation prompt.
+    
+    Args:
+        design_brief: The textual design brief
+        card_json: The structured card design JSON
+        
+    Returns:
+        Image generation prompt string
+    """
+    import re
+    
+    # Extract key information from brief
+    colors = re.findall(r'#[0-9A-Fa-f]{6}', design_brief)
+    
+    # Extract text content from card JSON
+    text_elements = []
+    for elem in card_json.get('elements', []):
+        if elem.get('type') == 'text':
+            text_elements.append(elem.get('content', ''))
+    
+    sample_text = ' / '.join(text_elements[:3]) if text_elements else 'Wedding Invitation'
+    
+    prompt = f"""Create a beautiful wedding invitation card in A6 landscape format (148mm × 105mm).
+
+AESTHETIC & STYLE:
+{design_brief}
+
+DESIGN REQUIREMENTS:
+- Card dimensions: 148mm wide × 105mm tall (landscape orientation)
+- Include the text: "{sample_text}"
+- Match the color palette EXACTLY: {', '.join(colors[:5])}
+- High-quality print design, 300 DPI
+- Elegant, professional wedding stationery aesthetic
+- DO NOT include any photo borders, frames, or mockup elements - just the flat card design
+- The design should be print-ready, as if viewed from directly above
+
+STYLE NOTES:
+- If the brief mentions "watercolor florals" → include soft, delicate botanical watercolor illustrations
+- If the brief mentions "Script" typography → use elegant flowing calligraphic fonts
+- If the brief mentions "Serif" typography → use classic traditional fonts
+- If the brief mentions "modern minimal" → use clean lines and lots of white space
+- If the brief mentions "rustic boho" → use earthy organic elements
+- If the brief mentions "classic elegant" → use refined traditional design
+
+OUTPUT: A flat, print-ready wedding invitation card design (not a mockup, just the card itself)"""
+    
+    return prompt
+
+
 def generate_wedding_card_from_pinterest(
     image_urls: List[str], 
     progress_callback=None
@@ -506,7 +557,7 @@ def generate_wedding_card_from_pinterest(
         progress_callback: Optional callback for progress updates
     
     Returns:
-        Complete card design as JSON object
+        Complete card design as JSON object with AI-generated image path
     """
     # Step 1: Analyze images (already done via pinterest_scraper)
     
@@ -521,19 +572,34 @@ def generate_wedding_card_from_pinterest(
     
     # Step 2b: Description-to-Brief
     if progress_callback:
-        progress_callback("Creating design brief...", 50, 100)
+        progress_callback("Creating design brief...", 40, 100)
     
     design_brief = synthesize_design_brief(descriptions)
     
-    # Step 2c: Brief-to-Card
+    # Step 2c: Brief-to-Card JSON (for structured metadata)
     if progress_callback:
-        progress_callback("Generating card design...", 75, 100)
+        progress_callback("Generating design structure...", 60, 100)
     
     card_design = generate_card_design_json(design_brief)
     
-    # Add the design brief to the output for reference
+    # Step 2d: RENDER FINAL CARD WITH AI IMAGE GENERATION
+    if progress_callback:
+        progress_callback("Rendering final wedding invitation...", 80, 100)
+    
+    # Create image generation prompt from the design brief
+    image_prompt = create_image_generation_prompt(design_brief, card_design)
+    
+    print("\n" + "="*80)
+    print("IMAGE GENERATION PROMPT:")
+    print("="*80)
+    print(image_prompt)
+    print("="*80 + "\n")
+    
+    # Add metadata to card design
     card_design["_design_brief"] = design_brief
     card_design["_source_images_count"] = len(image_urls)
+    card_design["_image_generation_prompt"] = image_prompt
+    card_design["_rendering_method"] = "ai_generated"
     
     if progress_callback:
         progress_callback("Complete!", 100, 100)
