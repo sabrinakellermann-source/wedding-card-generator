@@ -81,17 +81,28 @@ def analyze_single_image(image_url: str) -> str:
     elif ".webp" in image_url.lower():
         mime_type = "image/webp"
     
-    prompt = """You are an expert art descriptor. Describe the following image in detail as if for a blind person. 
-Focus on:
-- Color palette (with hex codes if possible)
-- Mood and emotional tone
-- Style (e.g., rustic, modern, minimalist, bohemian, classic, romantic)
-- Key objects and motifs
-- Textures and materials
-- Any visible typography or text elements
-- Overall composition and layout
+    prompt = """You are an expert wedding design consultant analyzing a Pinterest inspiration image. Extract specific design elements:
 
-Be specific and detailed in your description."""
+COLORS (CRITICAL - Be Precise):
+- Identify the 3-5 dominant colors in the image
+- For each color, provide the exact hex code (e.g., #F5E6D3, #8B7355, #2C5F2D)
+- Note if colors are warm/cool, muted/vibrant, pastel/saturated
+
+STYLE & MOOD:
+- Aesthetic category: modern minimalist, rustic boho, classic elegant, romantic vintage, or describe specifically
+- Emotional tone: sophisticated, whimsical, intimate, grand, serene, joyful, etc.
+
+VISUAL ELEMENTS:
+- Key motifs: florals, geometric shapes, botanical elements, hearts, ribbons, etc.
+- Typography style if visible: script/cursive, serif, sans-serif, ornate, simple
+- Textures: watercolor, linen, gold foil, matte, glossy, hand-drawn
+
+LAYOUT & COMPOSITION:
+- Symmetrical or asymmetrical
+- Minimalist (lots of white space) or decorated
+- Centered or offset arrangement
+
+Be extremely specific about colors - they are the most important element."""
     
     api_response = thread_client.models.generate_content(
         model="gemini-2.5-flash",
@@ -192,25 +203,55 @@ def synthesize_design_brief(image_descriptions: List[str]) -> str:
         for i, desc in enumerate(image_descriptions) if desc
     ])
     
-    prompt = f"""You are a design director. Read the following collection of image descriptions from a Pinterest wedding inspiration board and synthesize them into a single, coherent design brief for a wedding invitation.
+    prompt = f"""You are a design director at a premium wedding stationery company. Analyze these Pinterest board descriptions and create a precise design brief for a wedding invitation.
 
-IMAGE DESCRIPTIONS:
+IMAGE DESCRIPTIONS FROM PINTEREST BOARD:
 {combined_descriptions}
 
-Your output should include:
-1. A short paragraph (3-4 sentences) summarizing the overall aesthetic and mood
-2. A list of 3-5 key motifs or visual elements that should be incorporated
-3. A primary color palette of exactly 5 hex codes that best represent this wedding vision
-4. Typography recommendations (e.g., elegant script, modern sans-serif, classic serif)
+Create a structured design brief with these EXACT sections:
 
-Be specific and design-focused. This brief will be used to create an actual wedding invitation."""
+**AESTHETIC SUMMARY:**
+Write 2-3 sentences capturing the overall visual style, mood, and wedding vibe.
+
+**COLOR PALETTE (EXACTLY 5 HEX CODES):**
+List exactly 5 hex codes that appear most frequently across these images. Choose:
+- 1 background color (usually lightest/neutral: white, cream, blush, sage, etc.)
+- 2-3 primary accent colors (the dominant aesthetic colors)
+- 1-2 secondary/text colors (darker for readability)
+
+Format: #HEXCODE - description
+Example:
+- #FFFFFF - Clean white background
+- #D4AF37 - Warm gold accent
+- #8B7355 - Earthy brown
+- #F5E6D3 - Soft cream
+- #2C2C2C - Charcoal text
+
+**KEY MOTIFS (3-5 elements):**
+List specific visual elements that appear repeatedly:
+- florals, botanical, geometric, hearts, ribbons, watercolor, gold accents, etc.
+
+**TYPOGRAPHY STYLE:**
+Recommend 1-2 font combinations based on the aesthetic:
+- "Script" for romantic/elegant/flowing styles
+- "Serif" for classic/traditional/sophisticated styles
+- "Sans-Serif" for modern/minimal/clean styles
+
+Be extremely specific about colors - extract actual hex codes from the images."""
     
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
     )
     
-    return response.text or ""
+    design_brief = response.text or ""
+    print("\n" + "="*80)
+    print("DESIGN BRIEF GENERATED:")
+    print("="*80)
+    print(design_brief)
+    print("="*80 + "\n")
+    
+    return design_brief
 
 
 @retry(
@@ -345,20 +386,37 @@ EXAMPLE 3 - Classic Elegant:
 }
 """
     
-    prompt = f"""You are a senior graphic designer at kartenmacherei.de, a premium German wedding stationery company.
+    prompt = f"""You are a senior graphic designer at kartenmacherei.de creating a wedding invitation that PERFECTLY matches this Pinterest-inspired design brief.
 
-YOUR TASK:
-Create a new wedding invitation design that captures the aesthetic described in the design brief below. Your output MUST be a single, valid JSON object that follows our exact schema.
-
-DESIGN BRIEF TO FOLLOW:
+===== DESIGN BRIEF (YOUR ONLY REFERENCE) =====
 {design_brief}
+===============================================
 
-CRITICAL INSTRUCTIONS - READ CAREFULLY:
-1. COLORS: You MUST use ONLY the 5 hex color codes listed in the design brief's color palette. Do not use colors from the examples below.
-2. MOTIFS: Incorporate the key motifs and visual elements mentioned in the design brief using our available decorative elements.
-3. TYPOGRAPHY: Match the font choices to the typography style described in the design brief (elegant script → "Script", modern → "Sans-Serif", classic → "Serif").
-4. MOOD: The overall aesthetic (background color, spacing, element arrangement) should reflect the mood described in the design brief.
-5. EXAMPLES ARE FORMAT ONLY: The examples below show the correct JSON structure, but DO NOT copy their colors, text, or specific design choices.
+MANDATORY RULES - VIOLATIONS WILL BE REJECTED:
+
+1. **COLORS - USE ONLY THESE 5 HEX CODES:**
+   - Extract the exact 5 hex codes from the COLOR PALETTE section above
+   - Use ZERO colors outside this palette
+   - Background: Use the lightest color from the palette
+   - Text: Use darker colors for readability
+   - Decorative elements: Use accent colors from the palette
+   - DO NOT use colors from the examples below (#FFFFFF, #2C2C2C, etc. are examples only)
+
+2. **AESTHETIC MATCH:**
+   - If brief says "rustic boho" → use warm earthy tones, organic spacing, script fonts
+   - If brief says "modern minimal" → use lots of white space, sans-serif fonts, geometric decorative elements
+   - If brief says "classic elegant" → use traditional serif fonts, symmetrical layout, refined decorative elements
+   - If brief says "romantic vintage" → use soft colors, script fonts, floral decorative elements
+
+3. **MOTIFS:**
+   - Brief mentions "florals" → use floral-branch or leaf-accent decorative element
+   - Brief mentions "geometric" → use geometric-border or dots-pattern
+   - Brief mentions "hearts/romantic" → use heart-line decorative element
+
+4. **TYPOGRAPHY:**
+   - Brief recommends "Script" → Use "Script" font for couple names
+   - Brief recommends "Serif" → Use "Serif" font for formal text
+   - Brief recommends "Sans-Serif" → Use "Sans-Serif" for modern clean look
 
 AVAILABLE FONTS:
 - "Serif": Classic, elegant, timeless
@@ -397,6 +455,38 @@ Now generate the JSON wedding invitation design that brings the design brief to 
     
     try:
         card_json = json.loads(response.text or "{}")
+        print("\n" + "="*80)
+        print("CARD DESIGN JSON GENERATED:")
+        print("="*80)
+        print(json.dumps(card_json, indent=2))
+        print("="*80 + "\n")
+        
+        # Validate palette adherence (extract colors from brief and card JSON)
+        import re
+        brief_colors = set(re.findall(r'#[0-9A-Fa-f]{6}', design_brief))
+        card_colors = set()
+        
+        # Extract all colors from the card JSON
+        if 'card' in card_json and 'backgroundColor' in card_json['card']:
+            card_colors.add(card_json['card']['backgroundColor'].upper())
+        if 'elements' in card_json:
+            for elem in card_json['elements']:
+                if 'color' in elem:
+                    card_colors.add(elem['color'].upper())
+        
+        # Normalize for comparison
+        brief_colors = {c.upper() for c in brief_colors}
+        
+        # Check if card colors are subset of brief colors
+        extra_colors = card_colors - brief_colors
+        if extra_colors:
+            print(f"\n⚠️ WARNING: Card uses colors not in brief palette!")
+            print(f"Brief palette: {sorted(brief_colors)}")
+            print(f"Card colors: {sorted(card_colors)}")
+            print(f"Extra colors: {sorted(extra_colors)}\n")
+        else:
+            print(f"\n✅ VALIDATION PASSED: All {len(card_colors)} card colors match brief palette\n")
+        
         return card_json
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {str(e)}")
