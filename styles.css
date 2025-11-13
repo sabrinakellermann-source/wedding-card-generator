@@ -1,0 +1,177 @@
+/* Custom CSS for kartenmacherei-inspired design */
+
+/* Main container styling */
+.main {
+    background-color: #f5f3f0;
+}
+
+/* Card-style containers */
+.element-container {
+    background-color: transparent;
+}
+
+/* Button styling to match teal design */
+.stButton > button {
+    background-color: #1d4d4f;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stButton > button:hover {
+    background-color: #2a6366;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.stButton > button[kind="primary"] {
+    background-color: #1d4d4f;
+}
+
+.stButton > button[kind="secondary"] {
+    background-color: transparent;
+    border: 2px solid #1d4d4f;
+    color: #1d4d4f;
+}
+
+.stButton > button[kind="secondary"]:hover {
+    background-color: #1d4d4f;
+    color: white;
+}
+
+/* Input fields */
+.stTextInput > div > div > input {
+    border-radius: 4px;
+    border: 1px solid #d0d0d0;
+    padding: 0.75rem;
+    background-color: white;
+    transition: border-color 0.3s ease;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: #1d4d4f;
+    box-shadow: 0 0 0 1px #1d4d4f;
+}
+
+/* Info boxes and containers */
+.stAlert {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Expander styling */
+.streamlit-expanderHeader {
+    background-color: white;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    font-weight: 500;
+    color: #2c2c2c;
+}
+
+/* Metric styling */
+.stMetric {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Title and header styling */
+h1 {
+    color: #1d4d4f;
+    font-weight: 600;
+}
+
+h2, h3 {
+    color: #2c2c2c;
+    font-weight: 500;
+}
+
+/* Divider styling */
+hr {
+    border-color: #d0d0d0;
+    opacity: 0.3;
+}
+
+/* Download button special styling */
+.stDownloadButton > button {
+    background-color: white;
+    border: 2px solid #1d4d4f;
+    color: #1d4d4f;
+}
+
+.stDownloadButton > button:hover {
+    background-color: #1d4d4f;
+    color: white;
+}
+
+/* Progress bar */
+.stProgress > div > div > div > div {
+    background-color: #1d4d4f;
+}
+
+/* Success message */
+.stSuccess {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+/* Error message */
+.stError {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+/* Warning message */
+.stWarning {
+    background-color: #fff3e0;
+    color: #ef6c00;
+}
+
+/* Info message */
+.stInfo {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+/* Sidebar styling (if used) */
+.css-1d391kg {
+    background-color: white;
+}
+
+/* Clean card appearance for image containers */
+.stImage {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Column containers */
+[data-testid="column"] {
+    background-color: transparent;
+}
+
+/* Markdown content */
+.stMarkdown {
+    color: #2c2c2c;
+}
+
+/* Links */
+a {
+    color: #1d4d4f;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Spinner */
+.stSpinner > div {
+    border-top-color: #1d4d4f;
+}
