@@ -20,9 +20,9 @@ Preferred communication style: Simple, everyday language.
   1. Image Analysis Stage: Concurrent processing of Pinterest images to extract design elements (colors, styles, mood, typography)
   2. Design Generation Stage: Synthesis of analyzed elements into a structured card design
   3. Validation Stage: Schema validation using Pydantic models
-  4. Rendering Stage: Conversion of JSON design to visual output
+  4. **AI Image Rendering Stage**: Gemini 2.5 Flash Image ("nano banana") generates final wedding invitation as high-quality PNG
 - **Error Handling**: Tenacity retry logic specifically for rate limiting (429 errors) with exponential backoff (2-128 seconds)
-- **Rationale**: The multi-stage approach separates concerns and allows for independent testing/optimization of each pipeline component. The concurrent processing reduces overall generation time to meet the <30 second target
+- **Rationale**: The multi-stage approach separates concerns and allows for independent testing/optimization of each pipeline component. AI image generation replaced PIL renderer to produce Pinterest-quality watercolor florals and elegant typography
 
 ## Data Models & Validation
 - **Schema Framework**: Pydantic for type-safe validation
@@ -36,12 +36,19 @@ Preferred communication style: Simple, everyday language.
 - **Rationale**: Strict schema validation ensures AI outputs are always renderable and align with kartenmacherei.de brand standards, preventing invalid designs from reaching users
 
 ## Image Processing & Rendering
-- **Rendering Library**: PIL (Pillow) for raster graphics generation
-- **Resolution**: 300 DPI for print quality
-- **Measurement System**: Millimeters converted to pixels at render time
-- **Font Handling**: Fallback to default fonts (with planned enhancement for specific typography)
-- **Color System**: Hex color codes validated via regex, converted to RGB for rendering
-- **Rationale**: PIL provides sufficient capabilities for the prototype phase, with 300 DPI ensuring professional print quality
+- **Primary Rendering**: Gemini 2.5 Flash Image (nano banana) for AI-generated wedding invitations
+  - **Model**: `gemini-2.5-flash-image` with multimodal output (TEXT + IMAGE)
+  - **Format Support**: PNG, JPEG, WebP (auto-converted to PNG for Streamlit compatibility)
+  - **Multi-part Handling**: Aggregates all response parts for streaming responses
+  - **Validation**: PIL Image.verify() ensures image integrity before saving
+  - **Magic Byte Detection**: Fallback format detection from file signatures if MIME type unavailable
+  - **Error Recovery**: Deletes corrupted files, provides clear error messages
+- **Fallback Rendering**: PIL (Pillow) for geometric preview when AI generation fails
+  - Resolution: 300 DPI for print quality
+  - Measurement System: Millimeters converted to pixels at render time
+  - Font Handling: Default system fonts
+  - Color System: Hex codes validated and converted to RGB
+- **Rationale**: AI image generation produces Pinterest-quality designs (watercolor florals, elegant typography) that PIL renderer fundamentally cannot achieve. PIL serves as graceful degradation fallback.
 
 ## Session Management
 - **State Management**: Streamlit session state for design persistence and regeneration tracking
@@ -52,11 +59,14 @@ Preferred communication style: Simple, everyday language.
 # External Dependencies
 
 ## AI Services
-- **Google Gemini AI**: Primary AI service for image analysis and design generation
-- **Access Method**: Replit AI Integrations service (proxied via custom base URL)
-- **Authentication**: API key via environment variable `AI_INTEGRATIONS_GEMINI_API_KEY`
-- **Configuration**: Custom base URL via `AI_INTEGRATIONS_GEMINI_BASE_URL`
-- **Rate Limiting**: Implements exponential backoff retry logic (7 attempts, 2-128 second delays)
+- **Google Gemini AI**: Primary AI service for image analysis, design generation, and image rendering
+  - **Text Analysis**: `gemini-1.5-flash` for image description and design brief synthesis
+  - **Image Generation**: `gemini-2.5-flash-image` ("nano banana") for final wedding invitation rendering
+  - **Access Method**: Replit AI Integrations service (proxied via custom base URL)
+  - **Authentication**: API key via environment variable `AI_INTEGRATIONS_GEMINI_API_KEY`
+  - **Configuration**: Custom base URL via `AI_INTEGRATIONS_GEMINI_BASE_URL`
+  - **Rate Limiting**: Implements exponential backoff retry logic (7 attempts, 2-128 second delays)
+  - **Cost**: Charged to Replit credits (no separate API key needed)
 
 ## Pinterest Board Scraping
 - **Primary Input Method**: Apify Pinterest Scraper (professional scraping service)
