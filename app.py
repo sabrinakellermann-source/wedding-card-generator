@@ -10,7 +10,6 @@ from card_renderer import render_card_design
 
 st.set_page_config(
     page_title="Pinterest Wedding Card Generator",
-    page_icon="💒",
     layout="wide"
 )
 
@@ -24,7 +23,7 @@ def load_css():
 
 load_css()
 
-st.title("💒 Pinterest-Powered Wedding Invitation Generator")
+st.title("Pinterest-Powered Wedding Invitation Generator")
 st.markdown("""
 Transform your Pinterest wedding inspiration into a beautiful, personalized invitation design.
 Simply paste your public Pinterest board URL and let AI create a unique design based on your aesthetic.
@@ -47,7 +46,7 @@ def progress_callback(message: str, current: int, total: int):
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.subheader("📌 Enter Your Pinterest Board")
+    st.subheader("Enter Your Pinterest Board")
     
     pinterest_url = st.text_input(
         "Pinterest Board URL",
@@ -59,11 +58,11 @@ with col1:
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
     
     with col_btn1:
-        generate_button = st.button("✨ Generate Design", type="primary", use_container_width=True)
+        generate_button = st.button("Generate Design", type="primary", use_container_width=True)
     
     with col_btn2:
         if st.session_state.generated_design:
-            regenerate_button = st.button("🔄 Try Again", use_container_width=True)
+            regenerate_button = st.button("Try Again", use_container_width=True)
         else:
             regenerate_button = False
     
@@ -73,7 +72,7 @@ with col1:
             st.error("Please enter a Pinterest board URL")
             st.stop()
         elif not validate_pinterest_url(pinterest_url):
-            st.error("❌ Invalid URL format. Please enter a Pinterest board URL (e.g., https://pinterest.com/username/board-name/) — search results and individual pins are not supported.")
+            st.error("Invalid URL format. Please enter a Pinterest board URL (e.g., https://pinterest.com/username/board-name/) — search results and individual pins are not supported.")
             st.stop()
         
         try:
@@ -81,26 +80,26 @@ with col1:
             
             # Use Apify to scrape the board (reliable, handles JavaScript and bot detection)
             st.session_state.pinterest_url = pinterest_url
-            with st.spinner("🔍 Fetching pins from Pinterest board via Apify..."):
+            with st.spinner("Fetching pins from Pinterest board via Apify..."):
                 try:
                     image_urls = extract_pinterest_board_images_apify(pinterest_url, max_images=25)
                     
                     if not image_urls:
-                        st.error(f"❌ No pins found on this board. Please check the URL and ensure the board is public and contains images.")
+                        st.error(f"No pins found on this board. Please check the URL and ensure the board is public and contains images.")
                         st.stop()
                     elif len(image_urls) < MIN_REQUIRED_IMAGES:
-                        st.error(f"❌ Insufficient pins: Found only {len(image_urls)} pin(s). At least {MIN_REQUIRED_IMAGES} pins are required to create a meaningful design. Please use a board with more wedding inspiration images.")
+                        st.error(f"Insufficient pins: Found only {len(image_urls)} pin(s). At least {MIN_REQUIRED_IMAGES} pins are required to create a meaningful design. Please use a board with more wedding inspiration images.")
                         st.stop()
                     elif len(image_urls) < 10:
-                        st.warning(f"⚠️ Found {len(image_urls)} pins. For best results, use a board with at least 10-15 pins.")
+                        st.warning(f"Found {len(image_urls)} pins. For best results, use a board with at least 10-15 pins.")
                         analyzed_count = len(image_urls)
                         st.info(f"Analyzing all {analyzed_count} available pins...")
                     else:
                         analyzed_count = min(10, len(image_urls))
-                        st.success(f"✓ Found {len(image_urls)} pins (analyzing top {analyzed_count} for optimal performance)")
+                        st.success(f"Found {len(image_urls)} pins (analyzing top {analyzed_count} for optimal performance)")
                         
                 except ApifyPinterestError as e:
-                    st.error(f"❌ {str(e)}")
+                    st.error(f"{str(e)}")
                     st.stop()
             
             progress_bar = st.progress(0)
@@ -111,7 +110,7 @@ with col1:
                 progress_bar.progress(progress_value)
                 status_text.text(message)
             
-            with st.spinner("🎨 Analyzing your wedding aesthetic with AI..."):
+            with st.spinner("Analyzing your wedding aesthetic with AI..."):
                 card_design = generate_wedding_card_from_pinterest(
                     image_urls,
                     progress_callback=update_progress
@@ -127,7 +126,7 @@ with col1:
                 progress_bar.empty()
                 status_text.empty()
                 
-                st.success(f"✨ Design generated successfully in {elapsed_time:.1f} seconds!")
+                st.success(f"Design generated successfully in {elapsed_time:.1f} seconds!")
                 st.rerun()
                 
             except Exception as validation_error:
@@ -140,7 +139,7 @@ with col1:
                 st.code(traceback.format_exc())
 
 with col2:
-    st.subheader("ℹ️ How It Works")
+    st.subheader("How It Works")
     st.markdown("""
     1. **Share Your Vision**: Paste your Pinterest board URL
     2. **AI Analysis**: Our AI analyzes colors, styles, and themes
@@ -156,7 +155,7 @@ with col2:
 if st.session_state.generated_design:
     st.divider()
     
-    st.subheader("🎉 Your Generated Wedding Invitation")
+    st.subheader("Your Generated Wedding Invitation")
     
     design = st.session_state.generated_design
     
@@ -170,8 +169,8 @@ if st.session_state.generated_design:
         
         if generated_image_path:
             try:
-                st.image(generated_image_path, caption="Your AI-Generated Wedding Invitation ✨", use_container_width=True)
-                st.success("🎨 Generated with Gemini 2.5 Flash Image (nano banana)")
+                st.image(generated_image_path, caption="Your AI-Generated Wedding Invitation", use_container_width=True)
+                st.success("Generated with Gemini 2.5 Flash Image (nano banana)")
             except Exception as e:
                 st.error(f"Error displaying AI-generated image: {str(e)}")
                 st.info("Falling back to structured preview...")
@@ -180,7 +179,7 @@ if st.session_state.generated_design:
         # Fallback to PIL render or details if AI generation failed
         if not generated_image_path:
             if '_image_generation_error' in design:
-                st.warning(f"⚠️ AI image generation failed: {design['_image_generation_error']}")
+                st.warning(f"AI image generation failed: {design['_image_generation_error']}")
             
             try:
                 card_image = render_card_design(design, dpi=150)
@@ -218,15 +217,15 @@ if st.session_state.generated_design:
             st.markdown(f"**Source Images Analyzed**: {design['_source_images_count']}")
         
         if '_design_brief' in design:
-            with st.expander("📋 View Design Brief"):
+            with st.expander("View Design Brief"):
                 st.markdown(design['_design_brief'])
         
-        with st.expander("📄 View JSON Output"):
+        with st.expander("View JSON Output"):
             display_design = {k: v for k, v in design.items() if not k.startswith('_')}
             st.json(display_design)
         
         st.download_button(
-            label="💾 Download JSON",
+            label="Download JSON",
             data=json.dumps(display_design, indent=2),
             file_name=f"wedding_card_design_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json",
@@ -235,7 +234,7 @@ if st.session_state.generated_design:
 
 st.divider()
 
-with st.expander("ℹ️ About This Prototype"):
+with st.expander("About This Prototype"):
     st.markdown("""
     ### Pinterest-Powered Wedding Invitation Generator (Prototype)
     
@@ -262,6 +261,6 @@ with st.expander("ℹ️ About This Prototype"):
 
 st.markdown("---")
 st.markdown(
-    '<div style="text-align: center; color: #666;">Built with ❤️ for kartenmacherei.de | Powered by Replit AI Integrations</div>',
+    '<div style="text-align: center; color: #666;">Built for kartenmacherei.de | Powered by Replit AI Integrations</div>',
     unsafe_allow_html=True
 )
