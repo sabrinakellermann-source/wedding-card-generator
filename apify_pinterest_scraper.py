@@ -46,7 +46,7 @@ def extract_pinterest_board_images_apify(board_url: str, max_images: int = 30) -
         actor_input = {
             "startUrls": [{"url": board_url}],
             "resultsLimit": max_images,
-            "proxy": {
+            "proxyConfig": {
                 "useApifyProxy": True,
                 "apifyProxyGroups": ["RESIDENTIAL"]
             }
@@ -70,8 +70,11 @@ def extract_pinterest_board_images_apify(board_url: str, max_images: int = 30) -
             # Try different possible image URL fields
             img_url = None
             
-            # Common field names in Apify Pinterest scrapers
-            if 'image' in item and item['image']:
+            # danielmilevski9/pinterest-crawler returns nested structure
+            if 'image' in item and isinstance(item['image'], dict):
+                img_url = item['image'].get('url')
+            # Fallback for other scrapers
+            elif 'image' in item and isinstance(item['image'], str):
                 img_url = item['image']
             elif 'imageUrl' in item and item['imageUrl']:
                 img_url = item['imageUrl']
@@ -84,7 +87,7 @@ def extract_pinterest_board_images_apify(board_url: str, max_images: int = 30) -
                     img_url = item['images'][0]
             
             if img_url and isinstance(img_url, str):
-                # Ensure we get high quality images
+                # Ensure we get high quality images (though Apify already returns originals)
                 if '/236x/' in img_url:
                     img_url = img_url.replace('/236x/', '/originals/')
                 elif '/474x/' in img_url:
