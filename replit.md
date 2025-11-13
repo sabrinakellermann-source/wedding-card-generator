@@ -58,29 +58,39 @@ Preferred communication style: Simple, everyday language.
 - **Configuration**: Custom base URL via `AI_INTEGRATIONS_GEMINI_BASE_URL`
 - **Rate Limiting**: Implements exponential backoff retry logic (7 attempts, 2-128 second delays)
 
-## Web Scraping & Image Input
-- **Primary Input Method**: Manual image URL entry (recommended)
-  - Users copy image URLs directly from Pinterest boards and paste into the app
-  - Bypasses all Pinterest bot detection and JavaScript rendering issues
-  - Images downloaded as base64 data and sent to Gemini (bypasses robots.txt restrictions)
-  - Proven reliable for prototype phase
-- **Alternative Input Method**: Pinterest board URL scraping (unreliable)
-  - BeautifulSoup-based scraping attempts to extract images from board HTML
-  - Success rate is low due to Pinterest's bot detection and JavaScript-heavy pages
-  - Included for convenience but clearly marked as "May Not Work" in UI
-  - Gracefully fails with helpful error messages directing users to manual input
-- **Pinterest Scraping Challenges Encountered**:
-  - Bot detection blocks automated requests even with realistic user agents
-  - JavaScript-heavy pages require full browser rendering (static HTML insufficient)
-  - Playwright requires system dependencies (libnspr4, libnss3, etc.) unavailable in NixOS environment
-  - Pinterest robots.txt blocks AI services (including Gemini/Vertex AI) from accessing images
-- **Solutions Implemented**:
-  - Base64 image download: App downloads images and sends as data URIs to bypass robots.txt
-  - Manual URL input: Most reliable method for prototype, requires minimal user effort
-  - Clear UI messaging: Users guided to recommended approach with helpful instructions
+## Pinterest API Integration
+- **Primary Input Method**: Official Pinterest API v5 (OAuth 2.0)
+  - Reliable, supported access to user's Pinterest boards and pins
+  - Fetches high-quality original images directly from Pinterest CDN
+  - Respects Pinterest's terms of service and rate limits
+  - Requires one-time OAuth authentication per user
+- **Authentication Flow**:
+  1. User enters Pinterest board URL in the app
+  2. App redirects to Pinterest OAuth authorization page
+  3. User logs in and authorizes the app (scopes: boards:read, pins:read, user_accounts:read)
+  4. Pinterest redirects back to app with authorization code
+  5. App exchanges code for access token (30-day validity)
+  6. Access token stored in session state for subsequent requests
+- **API Endpoints Used**:
+  - `GET /v5/boards/{board_id}/pins/` - Fetch pins from a board (up to 100 per request)
+  - Board ID format: `username/board-name` extracted from Pinterest URL
+  - Image quality: Retrieves 'original' size for best AI analysis results
+- **Credentials Management**:
+  - App ID and App Secret stored securely in Replit Secrets
+  - Access tokens stored in session state (not persisted to database)
+  - Redirect URI: Dynamic based on REPLIT_DEV_DOMAIN environment variable
+- **Error Handling**:
+  - 401 Unauthorized: Token expired, prompts re-authentication
+  - 403 Forbidden: User doesn't own board or lack permissions
+  - 404 Not Found: Invalid board URL or board doesn't exist
+  - Clear user-facing error messages with actionable guidance
+- **Limitations**:
+  - Pinterest API only allows access to boards owned by the authenticated user or shared group boards
+  - Cannot access arbitrary public boards (privacy/security restriction by Pinterest)
+  - Access tokens expire after 30 days, requiring re-authentication
 - **URL Validation**: Strict allowlist-based validation prevents SSRF attacks while supporting all legitimate Pinterest domains (pinterest.com, pinterest.com.au, de.pinterest.com, etc.)
-- **Minimum Image Requirement**: At least 5 images required for meaningful aesthetic analysis
-- **Production Recommendation**: For kartenmacherei.de production deployment, integrate official Pinterest API for reliable, supported access to board data without scraping limitations
+- **Minimum Image Requirement**: At least 5 pins required for meaningful aesthetic analysis
+- **Legacy Support**: Web scraping code (pinterest_scraper.py) retained for reference but no longer used in production flow
 
 ## UI Framework
 - **Streamlit**: Web application framework for rapid prototyping
